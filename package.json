@@ -1,6 +1,6 @@
 {
   "name": "pcm-convert",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Convert pcm data from one format to another",
   "main": "index.js",
   "scripts": {
