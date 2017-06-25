@@ -70,6 +70,24 @@ Format can be defined as `dtype` string with markers, eg. `'uint8 interleaved mo
 | `channels` | Number of channels in source: `mono`, `stereo`, `quad`, `5.1`. |
 | `endianness` | `be` or `le`, defaults to OS endianness. |
 
+
+### convert.parse(str)
+
+Parse format string.
+
+```js
+let format = convert.parse('uint16 interleaved le quad')
+
+/* Parsed as
+{
+	channels: 4,
+	interleaved: true,
+	endianness: 'le',
+	dtype: 'uint16'
+}
+*/
+```
+
 ## Related
 
 * [audio-speaker](https://github.com/audiojs/audio-speaker) - output data to speaker in node

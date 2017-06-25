@@ -97,3 +97,16 @@ test('arraybuffer dst', t => {
 	t.ok(arr2 instanceof ArrayBuffer)
 	t.end()
 })
+
+test('parse', t => {
+	let format = convert.parse('uint16 interleaved le quad')
+
+	t.deepEqual(format, {
+		channels: 4,
+		interleaved: true,
+		endianness: 'le',
+		dtype: 'uint16'
+	})
+
+	t.end()
+})

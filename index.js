@@ -7,7 +7,10 @@ var os = require('os')
 var assert = require('assert')
 var isBuffer = require('is-buffer')
 
-module.exports = function convert (buffer, from, to) {
+module.exports = convert
+module.exports.parse = parse
+
+function convert (buffer, from, to) {
 	assert(buffer, 'First argument should be data')
 	assert(from, 'Second argument should be dtype or format object')
 
@@ -151,7 +154,8 @@ function parse (str) {
 		}
 		else if (part === 'stereo') format.channels = 2
 		else if (part === 'mono') format.channels = 1
-		else if (part === '5.1') format.channels = 4
+		else if (part === 'quad') format.channels = 4
+		else if (part === '5.1') format.channels = 6
 		else if (part === 'le') format.endianness = 'le'
 		else if (part === 'be') format.endianness = 'be'
 		else if (dtypes[part]) format.dtype = part
