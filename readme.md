@@ -65,17 +65,16 @@ Format can be defined as `dtype` string with markers, eg. `'uint8 interleaved mo
 
 | Property | Meaning |
 |---|---|
-| `dtype` | [Dtype](https://github.com/shama/dtype) string: `uint8`, `uint16`, `uint32`, `int8`, `int16`, `int32`, `float32`, `float64`, `array` (only `dstFormat`), `arraybuffer` (only `dstFormat`).  |
+| `dtype` | Data type string: `uint8`, `uint16`, `uint32`, `int8`, `int16`, `int32`, `float32`, `float64`, `array` (only `dstFormat`), `arraybuffer` (only `dstFormat`).  |
 | `interleaved` | Boolean indicating if data has `interleaved` or `planar` layout. |
 | `channels` | Number of channels in source: `mono`, `stereo`, `quad`, `5.1`. |
 | `endianness` | `be` or `le`, defaults to OS endianness. |
 
 ## Related
 
-* [audio-oscillator](https://github.com/audiojs/audio-oscillator)
-* [createPeriodicWave](https://developer.mozilla.org/en-US/docs/Web/API/AudioContext/createPeriodicWave)
-* [List of periodic functions](https://en.wikipedia.org/wiki/List_of_periodic_functions)
+* [audio-speaker](https://github.com/audiojs/audio-speaker) - output data to speaker in node
+* [dtype](https://github.com/shama/dtype) - list of standard data types
 
-## Credits
+## License
 
 © 2017 Dima Yv. MIT License
