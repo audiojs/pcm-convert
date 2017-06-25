@@ -27,6 +27,10 @@ module.exports = function convert (buffer, from, to) {
 		to.channels = from.channels
 	}
 
+	if (to.dtype == null) {
+		to.dtype = from.dtype
+	}
+
 	normalize(from)
 	normalize(to)
 
@@ -36,30 +40,30 @@ module.exports = function convert (buffer, from, to) {
 		from.endianness === to.endianness) return buffer
 
 	//convert buffer/alike to arrayBuffer
-	var data
+	var src
 	if (buffer instanceof ArrayBuffer) {
-		data = buffer
+		src = new (dtypes[from.dtype])(buffer)
 	}
-	else if (ArrayBuffer.isView(buffer)) {
-		if (buffer.byteOffset != null) data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-		else data = buffer.buffer;
+	else if (isBuffer(buffer)) {
+		if (buffer.byteOffset != null) src = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+		else src = buffer.buffer;
+
+		src = new (dtypes[from.dtype])(src)
 	}
+	//typed arrays are unchanged as is
 	else {
-		data = (new Uint8Array(buffer.length != null ? buffer : [buffer])).buffer
+		src = buffer
 	}
 
-	//create containers for conversion
-	var fromArray = new (dtypes[from.dtype])(data)
-
-	//toArray is automatically filled with mapped values
+	//dst is automatically filled with mapped values
 	//but in some cases mapped badly, e. g. float → int(round + rotate)
-	var toArray = new (dtypes[to.dtype])(fromArray)
+	var dst = new (dtypes[to.dtype])(src)
 
 	//if range differ, we should apply more thoughtful mapping
 	if (from.max !== to.max) {
 		var fromRange = from.max - from.min, toRange = to.max - to.min
-		for (var i = 0, l = fromArray.length; i < l; i++) {
-			var value = fromArray[i]
+		for (var i = 0, l = src.length; i < l; i++) {
+			var value = src[i]
 
 			//ignore not changed range
 			//bring to 0..1
@@ -69,31 +73,31 @@ module.exports = function convert (buffer, from, to) {
 			value = normalValue * toRange + to.min
 
 			//clamp (buffers do not like values outside of bounds)
-			toArray[i] = Math.max(to.min, Math.min(to.max, value))
+			dst[i] = Math.max(to.min, Math.min(to.max, value))
 		}
 	}
 
 	//reinterleave, if required
 	if (from.interleaved != to.interleaved) {
 		var channels = from.channels
-		var len = Math.floor(fromArray.length / channels)
+		var len = Math.floor(src.length / channels)
 
 		//deinterleave
 		if (from.interleaved && !to.interleaved) {
-			toArray = toArray.map(function (value, idx, data) {
-				var targetOffset = idx % len
-				var targetChannel = ~~(idx / len)
+			dst = dst.map(function (value, idx, data) {
+				var offset = idx % len
+				var channel = ~~(idx / len)
 
-				return data[targetOffset * channels + targetChannel]
+				return data[offset * channels + channel]
 			})
 		}
 		//interleave
 		else if (!from.interleaved && to.interleaved) {
-			toArray = toArray.map(function (value, idx, data) {
-				var targetOffset = ~~(idx / channels)
-				var targetChannel = idx % channels
+			dst = dst.map(function (value, idx, data) {
+				var offset = ~~(idx / channels)
+				var channel = idx % channels
 
-				return data[targetChannel * len + targetOffset]
+				return data[channel * len + offset]
 			})
 		}
 	}
@@ -101,15 +105,15 @@ module.exports = function convert (buffer, from, to) {
 	//ensure endianness
 	if (to.dtype != 'array' && from.endianness !== to.endianness) {
 		var le = to.endianness === 'le'
-		var view = new DataView(toArray.buffer)
-		var step = toArray.BYTES_PER_ELEMENT
+		var view = new DataView(dst.buffer)
+		var step = dst.BYTES_PER_ELEMENT
 		var methodName = 'set' + to.dtype[0].toUpperCase() + to.dtype.slice(1)
-		for (var i = 0, l = toArray.length; i < l; i++) {
-			view[methodName](i*step, toArray[i], le)
+		for (var i = 0, l = dst.length; i < l; i++) {
+			view[methodName](i*step, dst[i], le)
 		}
 	}
 
-	return toArray
+	return dst
 }
 
 
@@ -134,8 +138,14 @@ function parse (str) {
 	for (var i = 0; i < parts.length; i++) {
 		var part = parts[i].toLowerCase()
 
-		if (part === 'planar') format.interleaved = false
-		else if (part === 'interleaved') format.interleaved = true
+		if (part === 'planar') {
+			format.interleaved = false
+			if (format.channels == null) format.channels = 2
+		}
+		else if (part === 'interleaved') {
+			format.interleaved = true
+			if (format.channels == null) format.channels = 2
+		}
 		else if (part === 'stereo') format.channels = 2
 		else if (part === 'mono') format.channels = 1
 		else if (part === '5.1') format.channels = 4

@@ -18,6 +18,20 @@ test('FloatLE to Int16BE', function (t) {
 	t.end()
 });
 
+test('endianness', t => {
+	var buf = new Float32Array([1, -0.5])
+
+	var newBuf = convert(buf, 'float32 le', 'be');
+	newBuf = Buffer.from(newBuf.buffer)
+	var val1 = newBuf.readFloatBE(0);
+	var val2 = newBuf.readFloatBE(4);
+	console.log(newBuf)
+
+	t.equal(val1, 1.0);
+	t.equal(val2, -0.5);
+	t.end()
+})
+
 test('markers', function (t) {
 	let arr = convert(new Uint8Array([0, 255, 255, 0, 0, 255]), 'interleaved')
 
@@ -48,5 +62,21 @@ test('float to whatever', t => {
 		convert(new Float32Array([1, 1, -1, -1]),'float32', 'uint16'),
 		[65535, 65535, 0, 0])
 
+	t.end()
+})
+
+test('interleave', t => {
+	let arr = new Uint8Array([0,0,0,0,1,1,1,1])
+
+	t.deepEqual(convert(arr, 'planar', 'interleaved'), [0,1,0,1,0,1,0,1])
+	t.end()
+})
+
+test('deinterleave', t => {
+	let arr = new Uint8Array([0,1,0,1,0,1,0,1])
+	let arr2 = convert(arr, {interleaved: true}, {interleaved: false})
+	t.deepEqual(arr2, [0,0,0,0,1,1,1,1])
+	t.notEqual(arr, arr2)
+	t.ok(arr2 instanceof Uint8Array)
 	t.end()
 })
