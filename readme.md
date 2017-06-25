@@ -13,10 +13,12 @@ const convert = require('pcm-convert')
 let uint8arr = convert([0, 0.1, 0.1, 0], 'float32 mono', 'uint8')
 
 //convert interleaved uint8 to planar float32 array
-let float32arr = convert(new Uint8Array([127, 200, 127, 200]), {
-	dtype: 'uint8',
-	interleaved: true,
-	channels: 2}, 'float32 planar')
+let float32arr = convert(new Uint8Array([127, 200, 127, 200]),
+  {
+    interleaved: true,
+    channels: 2
+  },
+  'float32 planar')
 ```
 
 ## API
