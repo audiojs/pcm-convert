@@ -66,16 +66,16 @@ test('float to whatever', t => {
 })
 
 test('interleave', t => {
-	let arr = new Uint8Array([0,0,0,0,1,1,1,1])
+	let arr = new Uint8Array([0,2,4,6,1,3,5,7])
 
-	t.deepEqual(convert(arr, 'planar', 'interleaved'), [0,1,0,1,0,1,0,1])
+	t.deepEqual(convert(arr, 'planar', 'interleaved'), [0,1,2,3,4,5,6,7])
 	t.end()
 })
 
 test('deinterleave', t => {
-	let arr = new Uint8Array([0,1,0,1,0,1,0,1])
+	let arr = new Uint8Array([0,1,2,3,4,5,6,7])
 	let arr2 = convert(arr, {interleaved: true}, {interleaved: false})
-	t.deepEqual(arr2, [0,0,0,0,1,1,1,1])
+	t.deepEqual(arr2, [0,2,4,6,1,3,5,7])
 	t.notEqual(arr, arr2)
 	t.ok(arr2 instanceof Uint8Array)
 	t.end()
