@@ -80,3 +80,20 @@ test('deinterleave', t => {
 	t.ok(arr2 instanceof Uint8Array)
 	t.end()
 })
+
+
+test('array dst', t => {
+	let arr = new Uint8Array([0,255,0,255,0,255,0,255])
+	let arr2 = convert(arr, {interleaved: true}, 'array planar')
+	t.deepEqual(arr2, [-1,-1,-1,-1,1,1,1,1])
+	t.ok(Array.isArray(arr2))
+	t.end()
+})
+
+
+test('arraybuffer dst', t => {
+	let arr = new Uint8Array([0,255,0,255,0,255,0,255])
+	let arr2 = convert(arr, {interleaved: true}, 'arraybuffer planar')
+	t.ok(arr2 instanceof ArrayBuffer)
+	t.end()
+})

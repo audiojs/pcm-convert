@@ -113,6 +113,8 @@ module.exports = function convert (buffer, from, to) {
 		}
 	}
 
+	if (to.dtype === 'arraybuffer') dst = dst.buffer
+
 	return dst
 }
 
@@ -127,7 +129,8 @@ var dtypes = {
 	'int32': Int32Array,
 	'float32': Float32Array,
 	'float64': Float64Array,
-	'array': Array
+	'array': Array,
+	'arraybuffer': Uint8Array
 }
 
 //attempt to parse string
