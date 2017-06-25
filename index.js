@@ -169,11 +169,11 @@ function normalize (obj) {
 			break;
 		case 'uint16':
 			obj.min = 0
-			obj.max = 65536
+			obj.max = 65535
 			break;
 		case 'uint32':
 			obj.min = 0
-			obj.max = 4294967296
+			obj.max = 4294967295
 			break;
 		case 'int8':
 			obj.min = -128

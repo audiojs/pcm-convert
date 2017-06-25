@@ -33,3 +33,20 @@ test('bad markers', function (t) {
 	})
 	t.end()
 })
+
+
+test('float to whatever', t => {
+	t.deepEqual(
+		convert(new Float32Array([1, 1, -1, -1]),'float32', 'int16'),
+		[32767, 32767, -32768, -32768])
+
+	t.deepEqual(
+		convert(new Float32Array([1, 1, -1, -1]),'float32', 'int8'),
+		[127, 127, -128, -128])
+
+	t.deepEqual(
+		convert(new Float32Array([1, 1, -1, -1]),'float32', 'uint16'),
+		[65535, 65535, 0, 0])
+
+	t.end()
+})
