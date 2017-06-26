@@ -108,5 +108,14 @@ test('speaker test', t => {
           interleaved: true
     }), [-32768, 32767, 0, 0])
 
+    t.deepEqual(convert(new Float32Array([-1, 0, 1, 0]), {
+          dtype: 'float32',
+          interleaved: false,
+          channels: 2
+        }, {
+          dtype: 'int16',
+          interleaved: true
+    }), [-32768, 32767, 0, 0])
+
     t.end()
 })

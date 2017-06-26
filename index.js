@@ -130,60 +130,74 @@ var dtypes = {
 
 //make sure all format properties are present
 function normalize (obj) {
-	switch (obj.type) {
+	if (!obj.dtype) {
+		//ensure dtype
+		switch (obj.type) {
+			case 'float32':
+				obj.dtype = 'float32'
+				break;
+			case 'float64':
+				obj.dtype = 'float64'
+				break;
+			case 'buffer':
+			case 'arraybuffer':
+			case 'uint8':
+			case 'uint8_clamped':
+				obj.dtype = 'uint8'
+				break;
+			case 'uint16':
+				obj.dtype = 'uint16'
+				break;
+			case 'uint32':
+				obj.dtype = 'uint32'
+				break;
+			case 'int8':
+				obj.dtype = 'int8'
+				break;
+			case 'int16':
+				obj.dtype = 'int16'
+				break;
+			case 'int32':
+				obj.dtype = 'int32'
+				break;
+			default:
+				obj.dtype = 'array'
+				break;
+		}
+	}
+
+	//provide limits
+	switch (obj.dtype) {
 		case 'float32':
-			obj.min = -1
-			obj.max = 1
-			obj.dtype = 'float32'
-			break;
 		case 'float64':
 			obj.min = -1
 			obj.max = 1
-			obj.dtype = 'float64'
-			break;
-		case 'buffer':
-			obj.min = 0
-			obj.max = 255
-			obj.dtype = 'uint8'
-			break;
-		case 'arraybuffer':
-			obj.min = 0
-			obj.max = 255
-			obj.dtype = 'uint8'
 			break;
 		case 'uint8':
-		case 'uint8_clamped':
 			obj.min = 0
 			obj.max = 255
-			obj.dtype = 'uint8'
 			break;
 		case 'uint16':
-			obj.dtype = 'uint16'
 			obj.min = 0
 			obj.max = 65535
 			break;
 		case 'uint32':
-			obj.dtype = 'uint32'
 			obj.min = 0
 			obj.max = 4294967295
 			break;
 		case 'int8':
-			obj.dtype = 'int8'
 			obj.min = -128
 			obj.max = 127
 			break;
 		case 'int16':
-			obj.dtype = 'int16'
 			obj.min = -32768
 			obj.max = 32767
 			break;
 		case 'int32':
-			obj.dtype = 'int32'
 			obj.min = -2147483648
 			obj.max = 2147483647
 			break;
 		default:
-			obj.dtype = 'array'
 			obj.min = -1
 			obj.max = 1
 			break;
