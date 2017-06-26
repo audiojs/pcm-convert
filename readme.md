@@ -36,9 +36,9 @@ let float64 = convert(float32be, {
 
 ## API
 
-### convert(src, srcFormat, dstFormat='float32 planar')
+### convert(source, srcFormat, dstFormat='float32 planar')
 
-Takes data in `src` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties.
+Takes data in `source` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties, see [audio-format](https://github.com/audio-format) module.
 
 #### Source
 
@@ -71,25 +71,10 @@ Format can be defined as `dtype` string with markers, eg. `'uint8 interleaved mo
 | `endianness` | `be` or `le`, defaults to OS endianness. |
 
 
-### convert.parse(str)
-
-Parse format string.
-
-```js
-let format = convert.parse('uint16 interleaved le quad')
-
-/* Parsed as
-{
-	channels: 4,
-	interleaved: true,
-	endianness: 'le',
-	dtype: 'uint16'
-}
-*/
-```
 
 ## Related
 
+* [audio-format](https://github.com/audiojs/audio-format) - audio format notation parser/stringifier
 * [audio-speaker](https://github.com/audiojs/audio-speaker) - output data to speaker in node
 * [dtype](https://github.com/shama/dtype) - list of standard data types
 
