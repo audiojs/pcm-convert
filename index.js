@@ -14,6 +14,9 @@ function convert (buffer, from, to) {
 	assert(buffer, 'First argument should be data')
 	assert(from, 'Second argument should be dtype or format object')
 
+	//quick ignore
+	if (from === to) return buffer
+
 	from = extend(format.parse(buffer), format.parse(from))
 	to = format.parse(to)
 
