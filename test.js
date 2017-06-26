@@ -96,3 +96,17 @@ test('arraybuffer dst', t => {
 	t.ok(arr2 instanceof ArrayBuffer)
 	t.end()
 })
+
+
+test('speaker test', t => {
+	t.deepEqual(convert(new Float32Array([-1, 0, 1, 0]), {
+          type: 'float32',
+          interleaved: false,
+          channels: 2
+        }, {
+          type: 'int16',
+          interleaved: true
+    }), [-32768, 32767, 0, 0])
+
+    t.end()
+})
