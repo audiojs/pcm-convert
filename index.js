@@ -97,7 +97,7 @@ function convert (buffer, from, to) {
 	}
 
 	//ensure endianness
-	if (to.dtype != 'array' && from.endianness !== to.endianness) {
+	if (to.dtype != 'array' && to.dtype != 'int8' && to.dtype != 'uint8' && from.endianness !== to.endianness) {
 		var le = to.endianness === 'le'
 		var view = new DataView(dst.buffer)
 		var step = dst.BYTES_PER_ELEMENT
