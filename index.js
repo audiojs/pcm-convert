@@ -17,8 +17,11 @@ function convert (buffer, from, to) {
 	//quick ignore
 	if (from === to) return buffer
 
-	from = extend(format.parse(buffer), format.parse(from))
-	to = format.parse(to)
+	from = extend(
+		format.detect(buffer),
+		typeof from === 'string' ? format.parse(from) : format.detect(from)
+	)
+	to = typeof to === 'string' ? format.parse(to) : format.detect(to)
 
 	if (to.channels == null) {
 		to.channels = from.channels
