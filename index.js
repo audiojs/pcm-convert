@@ -12,16 +12,24 @@ module.exports = convert
 
 function convert (buffer, from, to) {
 	assert(buffer, 'First argument should be data')
-	assert(from, 'Second argument should be dtype or format object')
+	assert(from, 'Second argument should be format string or object')
 
 	//quick ignore
 	if (from === to) return buffer
 
-	from = extend(
-		format.detect(buffer),
-		typeof from === 'string' ? format.parse(from) : format.detect(from)
-	)
-	to = typeof to === 'string' ? format.parse(to) : format.detect(to)
+
+	//if no source format defined
+	if (to == null) {
+		to = typeof from === 'string' ? format.parse(from) : format.detect(from)
+		from = format.detect(buffer)
+	}
+	else {
+		from = extend(
+			format.detect(buffer),
+			typeof from === 'string' ? format.parse(from) : format.detect(from)
+		)
+		to = typeof to === 'string' ? format.parse(to) : format.detect(to)
+	}
 
 	if (to.channels == null) {
 		to.channels = from.channels
@@ -29,6 +37,10 @@ function convert (buffer, from, to) {
 
 	if (to.type == null) {
 		to.type = from.type
+	}
+
+	if (to.interleaved != null && from.channels == null) {
+		from.channels = 2
 	}
 
 	//ignore same format

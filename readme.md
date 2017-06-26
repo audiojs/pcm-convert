@@ -36,9 +36,9 @@ let float64 = convert(float32be, {
 
 ## API
 
-### convert(source, srcFormat, dstFormat='float32 planar')
+### convert(source, srcFormat?, dstFormat)
 
-Takes data in `source` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties, see [audio-format](https://github.com/audio-format) module.
+Takes data in `source` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties, see [audio-format](https://github.com/audio-format) module. If `srcFormat` is skipped, it is detected from source.
 
 #### Source
 
@@ -74,9 +74,9 @@ Format can be defined as `dtype` string with markers, eg. `'uint8 interleaved mo
 
 ## Related
 
-* [audio-format](https://github.com/audiojs/audio-format) - audio format notation parser/stringifier
-* [audio-speaker](https://github.com/audiojs/audio-speaker) - output data to speaker in node
-* [dtype](https://github.com/shama/dtype) - list of standard data types
+* [audio-format](https://github.com/audiojs/audio-format) - audio format notation parser/stringifier.
+* [audio-speaker](https://github.com/audiojs/audio-speaker) - output data to speaker in node.
+* [dtype](https://github.com/shama/dtype) - list of standard data types.
 
 ## License
 

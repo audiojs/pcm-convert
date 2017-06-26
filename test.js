@@ -119,3 +119,12 @@ test('speaker test', t => {
 
     t.end()
 })
+
+test('no srcFormat', t => {
+	t.deepEqual(convert(new Float32Array([-1, 0, 1, 0]), {
+          type: 'int16',
+          interleaved: true
+    }), [-32768, 32767, 0, 0])
+
+    t.end()
+})
