@@ -3,44 +3,35 @@
  */
 'use strict'
 
-var os = require('os')
 var assert = require('assert')
 var isBuffer = require('is-buffer')
+var format = require('audio-format')
+var extend = require('object-assign')
 
 module.exports = convert
-module.exports.parse = parse
 
 function convert (buffer, from, to) {
 	assert(buffer, 'First argument should be data')
 	assert(from, 'Second argument should be dtype or format object')
 
-	if (typeof from === 'string') {
-		from = parse(from)
-	}
-	if (typeof to === 'string') {
-		to = parse(to)
-	}
-	if (!to) to = {dtype: 'float32', interleaved: false}
-
-	if (from.dtype == null) {
-		from.dtype = dtype(buffer)
-	}
+	from = extend(format.parse(buffer), format.parse(from))
+	to = format.parse(to)
 
 	if (to.channels == null) {
 		to.channels = from.channels
 	}
 
-	if (to.dtype == null) {
-		to.dtype = from.dtype
+	if (to.type == null) {
+		to.type = from.type
 	}
+
+	//ignore same format
+	if (from.type === to.type &&
+		from.interleaved === to.interleaved &&
+		from.endianness === to.endianness) return buffer
 
 	normalize(from)
 	normalize(to)
-
-	//ignore same format
-	if (from.dtype === to.dtype &&
-		from.interleaved === to.interleaved &&
-		from.endianness === to.endianness) return buffer
 
 	//convert buffer/alike to arrayBuffer
 	var src
@@ -116,7 +107,7 @@ function convert (buffer, from, to) {
 		}
 	}
 
-	if (to.dtype === 'arraybuffer') dst = dst.buffer
+	if (to.type === 'arraybuffer' || to.type === 'buffer') dst = dst.buffer
 
 	return dst
 }
@@ -133,95 +124,70 @@ var dtypes = {
 	'float32': Float32Array,
 	'float64': Float64Array,
 	'array': Array,
-	'arraybuffer': Uint8Array
-}
-
-//attempt to parse string
-function parse (str) {
-	var format = {}
-	var parts = str.split(/\s+/)
-
-	for (var i = 0; i < parts.length; i++) {
-		var part = parts[i].toLowerCase()
-
-		if (part === 'planar') {
-			format.interleaved = false
-			if (format.channels == null) format.channels = 2
-		}
-		else if (part === 'interleaved') {
-			format.interleaved = true
-			if (format.channels == null) format.channels = 2
-		}
-		else if (part === 'stereo') format.channels = 2
-		else if (part === 'mono') format.channels = 1
-		else if (part === 'quad') format.channels = 4
-		else if (part === '5.1') format.channels = 6
-		else if (part === 'le') format.endianness = 'le'
-		else if (part === 'be') format.endianness = 'be'
-		else if (dtypes[part]) format.dtype = part
-		else throw Error('Cannot identify part `' + part + '`')
-	}
-
-	return format
+	'arraybuffer': Uint8Array,
+	'buffer': Uint8Array,
 }
 
 //make sure all format properties are present
 function normalize (obj) {
-	if (obj.interleaved == null) obj.interleaved = false
-	if (obj.channels == null) obj.channels = obj.interleaved ? 2 : 1
-	if (obj.dtype == null) obj.dtype = 'float32'
-	if (obj.endianness == null) obj.endianness = os.endianness instanceof Function ? os.endianness() : 'LE'
-
-	switch (obj.dtype) {
+	switch (obj.type) {
 		case 'float32':
-		case 'float64':
-		case 'array':
 			obj.min = -1
 			obj.max = 1
+			obj.dtype = 'float32'
+			break;
+		case 'float64':
+			obj.min = -1
+			obj.max = 1
+			obj.dtype = 'float64'
+			break;
+		case 'buffer':
+			obj.min = 0
+			obj.max = 255
+			obj.dtype = 'uint8'
+			break;
+		case 'arraybuffer':
+			obj.min = 0
+			obj.max = 255
+			obj.dtype = 'uint8'
 			break;
 		case 'uint8':
 		case 'uint8_clamped':
 			obj.min = 0
 			obj.max = 255
+			obj.dtype = 'uint8'
 			break;
 		case 'uint16':
+			obj.dtype = 'uint16'
 			obj.min = 0
 			obj.max = 65535
 			break;
 		case 'uint32':
+			obj.dtype = 'uint32'
 			obj.min = 0
 			obj.max = 4294967295
 			break;
 		case 'int8':
+			obj.dtype = 'int8'
 			obj.min = -128
 			obj.max = 127
 			break;
 		case 'int16':
+			obj.dtype = 'int16'
 			obj.min = -32768
 			obj.max = 32767
 			break;
 		case 'int32':
+			obj.dtype = 'int32'
 			obj.min = -2147483648
 			obj.max = 2147483647
+			break;
+		default:
+			obj.dtype = 'array'
+			obj.min = -1
+			obj.max = 1
 			break;
 	}
 
 	return obj
-}
-
-//detect dtype string of an array
-function dtype (array) {
-	if (array instanceof Float32Array) return 'float32'
-	if (array instanceof Float64Array) return 'float64'
-	if (array instanceof ArrayBuffer) return 'uint8'
-	if (isBuffer(array)) return 'uint8'
-	if (array instanceof Uint8Array) return 'uint8'
-	if (array instanceof Uint8ClampedArray) return 'uint8'
-	if (array instanceof Int8Array) return 'int8'
-	if (array instanceof Int16Array) return 'int16'
-	if (array instanceof Uint16Array) return 'uint16'
-	if (array instanceof Int32Array) return 'int32'
-	if (array instanceof Uint32Array) return 'uint32'
-
-	return 'float32'
 }

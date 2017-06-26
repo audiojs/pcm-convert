@@ -25,7 +25,6 @@ test('endianness', t => {
 	newBuf = Buffer.from(newBuf.buffer)
 	var val1 = newBuf.readFloatBE(0);
 	var val2 = newBuf.readFloatBE(4);
-	console.log(newBuf)
 
 	t.equal(val1, 1.0);
 	t.equal(val2, -0.5);
@@ -33,7 +32,7 @@ test('endianness', t => {
 })
 
 test('markers', function (t) {
-	let arr = convert(new Uint8Array([0, 255, 255, 0, 0, 255]), 'interleaved')
+	let arr = convert(new Uint8Array([0, 255, 255, 0, 0, 255]), 'interleaved', 'float32 planar')
 
 	t.deepEqual(arr, [-1, 1, -1, 1, -1, 1])
 
@@ -43,7 +42,7 @@ test('markers', function (t) {
 
 test('bad markers', function (t) {
 	t.throws(() => {
-		convert([0,0,0,0], 'float32 3')
+		convert([0,0,0,0], 'float32 xx')
 	})
 	t.end()
 })
@@ -95,18 +94,5 @@ test('arraybuffer dst', t => {
 	let arr = new Uint8Array([0,255,0,255,0,255,0,255])
 	let arr2 = convert(arr, {interleaved: true}, 'arraybuffer planar')
 	t.ok(arr2 instanceof ArrayBuffer)
-	t.end()
-})
-
-test('parse', t => {
-	let format = convert.parse('uint16 interleaved le quad')
-
-	t.deepEqual(format, {
-		channels: 4,
-		interleaved: true,
-		endianness: 'le',
-		dtype: 'uint16'
-	})
-
 	t.end()
 })
