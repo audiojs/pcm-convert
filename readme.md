@@ -1,4 +1,4 @@
-# pcm-convert [![unstable](https://img.shields.io/badge/stability-unstable-green.svg)](http://github.com/badges/stability-badges) [![Build Status](https://img.shields.io/travis/audiojs/pcm-convert.svg)](https://travis-ci.org/audiojs/pcm-convert)
+# pcm-convert [![unstable](https://img.shields.io/badge/stability-unstable-green.svg)](http://github.com/badges/stability-badges) [![Build Status](https://img.shields.io/travis/audiojs/pcm-convert.svg)](https://travis-ci.org/audiojs/pcm-convert) [![Greenkeeper badge](https://badges.greenkeeper.io/audiojs/pcm-convert.svg)](https://greenkeeper.io/)
 
 Convert data from one pcm-format to another.
 
