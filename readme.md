@@ -33,22 +33,25 @@ let float64 = convert(float32be, {
 	endianness: 'le'
 })
 
-//convert data to target format
+//skip source format string, convert directly to data format
 let uint16 = convert(new Uint8Array([0,255]), 'uint16')
 
-//put data into target container
+//put data into target container skipping format strings
 convert(new Uint8Array([0,255]), new Uint16Array(2))
+
+//full arguments case
+let uint16arr = convert([0, 0, 1, 1], 'float32 le stereo planar', 'uint16 interleaved be', new Uint16Array(4))
 ```
 
 ## API
 
-### convert(source, srcFormat?, dstFormat?, dst?)
+### convert(src, srcFormat?, dstFormat?, dst?)
 
-Takes data in `source` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties, see [audio-format](https://github.com/audio-format) module. If `srcFormat` is skipped, it is detected from source. Optionally a destination container can be provided as `dst`, and in case if `dstFormat` is skipped, it will be detected from `dst`.
+Takes data in `src` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties, see [audio-format](https://github.com/audio-format) module. If `srcFormat` is skipped, it is detected from `src`. Optionally a destination container can be provided as `dst`, and in case if `dstFormat` is skipped, it will be detected from `dst`.
 
 #### Source
 
-Source format is inferred from `source` data type, and extended with `srcFormat` properties. By default source is considered to have `planar mono le` properties.
+Source format is inferred from `source` data type, and extended with `srcFormat` properties. By default source is considered to have `planar mono le` properties. Every source type is handled as having the following data type:
 
 | Type | Dtype |
 |---|---|
