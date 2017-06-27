@@ -11,28 +11,43 @@ var isAudioBuffer = require('is-audio-buffer')
 
 module.exports = convert
 
-function convert (buffer, from, to) {
+function convert (buffer, from, to, target) {
 	assert(buffer, 'First argument should be data')
 	assert(from, 'Second argument should be format string or object')
 
 	//quick ignore
 	if (from === to) return buffer
 
-
-	//if no source format defined
-	if (to == null) {
-		to = typeof from === 'string' ? format.parse(from) : format.detect(from)
+	//2-containers case
+	if (isContainer(from)) {
+		target = from
+		to = format.detect(target)
 		from = format.detect(buffer)
 	}
+	//if no source format defined, just target format
+	else if (to == null) {
+		to = getFormat(from)
+		from = format.detect(buffer)
+	}
+	//if no source format but container is passed with from as target format
+	else if (isContainer(to)) {
+		target = to
+		to = getFormat(from)
+		from = format.detect(buffer)
+	}
+	//all arguments
 	else {
 		from = extend(
 			format.detect(buffer),
-			typeof from === 'string' ? format.parse(from) : format.detect(from)
+			getFormat(from)
 		)
-		to = typeof to === 'string' ? format.parse(to) : format.detect(to)
+		to = extend(
+			format.detect(target),
+			getFormat(to)
+		)
 	}
 
-	if (to.channels == null) {
+	if (to.channels == null && from.channels != null) {
 		to.channels = from.channels
 	}
 
@@ -137,7 +152,27 @@ function convert (buffer, from, to) {
 
 	if (to.type === 'arraybuffer' || to.type === 'buffer') dst = dst.buffer
 
+	if (target) {
+		if (Array.isArray(target)) {
+			for (var i = 0; i < dst.length; i++) {
+				target[i] = dst[i]
+			}
+		}
+		else {
+			target.set(dst)
+		}
+		dst = target
+	}
+
 	return dst
+}
+
+function getFormat (arg) {
+	return typeof arg === 'string' ? format.parse(arg) : format.detect(arg)
+}
+
+function isContainer (arg) {
+	return typeof arg != 'string' && (Array.isArray(arg) || ArrayBuffer.isView(arg) || arg instanceof ArrayBuffer)
 }
 
 

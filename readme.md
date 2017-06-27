@@ -32,13 +32,19 @@ let float64 = convert(float32be, {
 	interleaved: true,
 	endianness: 'le'
 })
+
+//convert data to target format
+let uint16 = convert(new Uint8Array([0,255]), 'uint16')
+
+//put data into target container
+convert(new Uint8Array([0,255]), new Uint16Array(2))
 ```
 
 ## API
 
-### convert(source, srcFormat?, dstFormat)
+### convert(source, srcFormat?, dstFormat?, dst?)
 
-Takes data in `source` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties, see [audio-format](https://github.com/audio-format) module. If `srcFormat` is skipped, it is detected from source.
+Takes data in `source` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties, see [audio-format](https://github.com/audio-format) module. If `srcFormat` is skipped, it is detected from source. Optionally a destination container can be provided as `dst`, and in case if `dstFormat` is skipped, it will be detected from `dst`.
 
 #### Source
 

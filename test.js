@@ -128,6 +128,11 @@ test('no srcFormat', t => {
           interleaved: true
     }), [-32768, 32767, 0, 0])
 
+
+	//convert data to target format
+	t.deepEqual(convert(new Uint8Array([0,255]), 'uint16'),
+		[0, 65535]);
+
     t.end()
 })
 
@@ -147,7 +152,6 @@ test.skip('audiobuffer output', t => {
 	t.end()
 })
 
-
 test('audiobuffer input (eastern egg, not the real API)', t => {
 	var buf1 = new AudioBuffer(null, {length: 4})
 	buf1.getChannelData(0).set(new Float32Array([0,0,1,1]))
@@ -159,6 +163,22 @@ test('audiobuffer input (eastern egg, not the real API)', t => {
 	buf2.getChannelData(1).set(new Float32Array([0,1]))
 	let arr2 = convert(buf2, 'audiobuffer', 'array')
 	t.deepEqual(arr2, [1,0,0,1])
+
+	t.end()
+})
+
+test('dst argument', t => {
+	let holder = new Uint8Array(4)
+	convert([0,1,0,-1], 'uint8', holder)
+	t.deepEqual(holder, [127, 255, 127, 0])
+
+	let h2 = new Uint16Array(2)
+	convert(new Uint8Array([0,255]), h2)
+	t.deepEqual(h2, [0, 65535])
+
+	let h3 = []
+	convert(new Uint8Array([0, 255, 0, 255]), 'interleaved', 'float32 planar', h3)
+	t.deepEqual(h3, [-1,-1,1,1])
 
 	t.end()
 })
