@@ -7,6 +7,7 @@ var assert = require('assert')
 var isBuffer = require('is-buffer')
 var format = require('audio-format')
 var extend = require('object-assign')
+var isAudioBuffer = require('is-audio-buffer')
 
 module.exports = convert
 
@@ -53,7 +54,16 @@ function convert (buffer, from, to) {
 
 	//convert buffer/alike to arrayBuffer
 	var src
-	if (buffer instanceof ArrayBuffer) {
+	if (isAudioBuffer(buffer)) {
+		if (buffer._data) src = buffer._data
+		else {
+			src = new Float32Array(buffer.length * buffer.numberOfChannels)
+			for (var c = 0, l = buffer.numberOfChannels; c < l; c++) {
+				src.set(buffer.getChannelData(c), buffer.length * c)
+			}
+		}
+	}
+	else if (buffer instanceof ArrayBuffer) {
 		src = new (dtypes[from.dtype])(buffer)
 	}
 	else if (isBuffer(buffer)) {
@@ -69,7 +79,7 @@ function convert (buffer, from, to) {
 
 	//dst is automatically filled with mapped values
 	//but in some cases mapped badly, e. g. float → int(round + rotate)
-	var dst = new (dtypes[to.dtype])(src)
+	var dst = to.type === 'array' ? Array.from(src) : new (dtypes[to.dtype])(src)
 
 	//if range differ, we should apply more thoughtful mapping
 	if (from.max !== to.max) {

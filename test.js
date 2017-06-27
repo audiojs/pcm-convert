@@ -2,6 +2,8 @@
 
 var test = require('tape')
 var convert = require('./')
+var AudioBuffer = require('audio-buffer')
+var isAudioBuffer = require('is-audio-buffer')
 
 test('floatLE to int16BE', function (t) {
 	var buf = new Buffer(8);
@@ -141,6 +143,22 @@ test.skip('audiobuffer output', t => {
 	t.ok(isAudioBuffer(buf2))
 	t.equal(buf2.numberOfChannels, 2)
 	t.equal(buf2.length, 2)
+
+	t.end()
+})
+
+
+test('audiobuffer input (eastern egg, not the real API)', t => {
+	var buf1 = new AudioBuffer(null, {length: 4})
+	buf1.getChannelData(0).set(new Float32Array([0,0,1,1]))
+	let arr1 = convert(buf1, 'audiobuffer', 'array')
+	t.deepEqual(arr1, [0,0,1,1])
+
+	var buf2 = new AudioBuffer(null, {length: 2, numberOfChannels: 2})
+	buf2.getChannelData(0).set(new Float32Array([1,0]))
+	buf2.getChannelData(1).set(new Float32Array([0,1]))
+	let arr2 = convert(buf2, 'audiobuffer', 'array')
+	t.deepEqual(arr2, [1,0,0,1])
 
 	t.end()
 })
