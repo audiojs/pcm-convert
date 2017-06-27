@@ -152,6 +152,9 @@ function normalize (obj) {
 		//ensure dtype
 		switch (obj.type) {
 			case 'float32':
+			case 'audiobuffer':
+			case 'ndsamples':
+			case 'ndarray':
 				obj.dtype = 'float32'
 				break;
 			case 'float64':
@@ -188,6 +191,9 @@ function normalize (obj) {
 	switch (obj.dtype) {
 		case 'float32':
 		case 'float64':
+		case 'audiobuffer':
+		case 'ndsamples':
+		case 'ndarray':
 			obj.min = -1
 			obj.max = 1
 			break;

@@ -3,7 +3,7 @@
 var test = require('tape')
 var convert = require('./')
 
-test('FloatLE to Int16BE', function (t) {
+test('floatLE to int16BE', function (t) {
 	var buf = new Buffer(8);
 	buf.writeFloatLE(1.0, 0);
 	buf.writeFloatLE(-0.5, 4);
@@ -127,4 +127,20 @@ test('no srcFormat', t => {
     }), [-32768, 32767, 0, 0])
 
     t.end()
+})
+
+//delegated to audio-buffer-from
+test.skip('audiobuffer output', t => {
+	let buf1 = convert([0,0,1,1], 'audiobuffer')
+	t.ok(isAudioBuffer(buf1))
+	t.equal(buf1.numberOfChannels, 1)
+	t.equal(buf1.length, 4)
+
+
+	let buf2 = convert([0,0,1,1], 'stereo audiobuffer')
+	t.ok(isAudioBuffer(buf2))
+	t.equal(buf2.numberOfChannels, 2)
+	t.equal(buf2.length, 2)
+
+	t.end()
 })
