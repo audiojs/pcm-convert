@@ -16,7 +16,9 @@ function convert (buffer, from, to, target) {
 	assert(from, 'Second argument should be format string or object')
 
 	//quick ignore
-	if (from === to) return buffer
+	if (from === to) {
+		return buffer
+	}
 
 	//2-containers case
 	if (isContainer(from)) {
@@ -25,7 +27,7 @@ function convert (buffer, from, to, target) {
 		from = format.detect(buffer)
 	}
 	//if no source format defined, just target format
-	else if (to == null) {
+	else if (to === undefined) {
 		to = getFormat(from)
 		from = format.detect(buffer)
 	}
@@ -37,14 +39,13 @@ function convert (buffer, from, to, target) {
 	}
 	//all arguments
 	else {
-		from = extend(
-			format.detect(buffer),
-			getFormat(from)
-		)
-		to = extend(
-			format.detect(target),
-			getFormat(to)
-		)
+		from = getFormat(from)
+		if (from.type) from.dtype = from.type
+		extend(from, format.detect(buffer))
+
+		to = getFormat(to)
+		if (to.type) to.dtype = to.type
+		if (target) extend(to, format.detect(target))
 	}
 
 	if (to.channels == null && from.channels != null) {

@@ -182,3 +182,15 @@ test('dst argument', t => {
 
 	t.end()
 })
+
+
+test('should not shortcut arraybuffers', t => {
+	let ab = new Float32Array([0,0,1,1]).buffer
+
+	let dst = convert(ab, {type: 'float32', interleaved: true}, 'float32 interleaved')
+
+	t.ok(dst instanceof Float32Array, 'Should ensure output type')
+	t.deepEqual(dst, [0, 0, 1, 1])
+
+	t.end()
+})
