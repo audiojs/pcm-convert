@@ -194,3 +194,15 @@ test('should not shortcut arraybuffers', t => {
 
 	t.end()
 })
+
+test('arraybuffer to float32', t => {
+	let buf = new AudioBuffer(null, {length: 4})
+
+	buf.getChannelData(0).set([0, 1, 0, -1])
+
+	let arr = convert(buf, 'float32')
+
+	t.deepEqual(arr, [0, 1, 0, -1])
+
+	t.end()
+})
