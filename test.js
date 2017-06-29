@@ -206,3 +206,30 @@ test('arraybuffer to float32', t => {
 
 	t.end()
 })
+
+test('put result into itself', t => {
+	let arr = new Float32Array([0, 1, 0, 1])
+
+	convert(arr, 'interleaved', 'planar', arr)
+
+	t.equal(arr, arr)
+	t.deepEqual(arr, [0,0,1,1])
+
+	t.end()
+})
+
+
+test('output arraybuffer should preserve input dtype', t => {
+	let res = convert(new Float32Array([-1,0,1]), 'float32', 'arraybuffer')
+
+	t.ok(res instanceof ArrayBuffer)
+	t.deepEqual(new Float32Array(res), [-1,0,1])
+
+
+	let res2 = convert(new Float32Array([-1,0,1]).buffer, 'float32', 'arraybuffer')
+
+	t.ok(res instanceof ArrayBuffer)
+	t.deepEqual(new Float32Array(res), [-1,0,1])
+
+	t.end()
+})

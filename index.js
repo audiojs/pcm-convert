@@ -39,13 +39,15 @@ function convert (buffer, from, to, target) {
 	}
 	//all arguments
 	else {
-		from = getFormat(from)
-		if (from.type) from.dtype = from.type
-		extend(from, format.detect(buffer))
+		let inFormat = getFormat(from)
+		let srcFormat = format.detect(buffer)
+		srcFormat.dtype = inFormat.type === 'arraybuffer' ? srcFormat.type : inFormat.type
+		from = extend(inFormat, srcFormat)
 
-		to = getFormat(to)
-		if (to.type) to.dtype = to.type
-		if (target) extend(to, format.detect(target))
+		let outFormat = getFormat(to)
+		let dstFormat = format.detect(target)
+		dstFormat.dtype = outFormat.type === 'arraybuffer' ? (dstFormat.type || from.dtype) : outFormat.type
+		to = extend(outFormat, dstFormat)
 	}
 
 	if (to.channels == null && from.channels != null) {
@@ -54,6 +56,7 @@ function convert (buffer, from, to, target) {
 
 	if (to.type == null) {
 		to.type = from.type
+		to.dtype = from.dtype
 	}
 
 	if (to.interleaved != null && from.channels == null) {
@@ -80,13 +83,13 @@ function convert (buffer, from, to, target) {
 		}
 	}
 	else if (buffer instanceof ArrayBuffer) {
-		src = new (dtypes[from.dtype])(buffer)
+		src = new (dtypeClass[from.dtype])(buffer)
 	}
 	else if (isBuffer(buffer)) {
 		if (buffer.byteOffset != null) src = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 		else src = buffer.buffer;
 
-		src = new (dtypes[from.dtype])(src)
+		src = new (dtypeClass[from.dtype])(src)
 	}
 	//typed arrays are unchanged as is
 	else {
@@ -95,7 +98,7 @@ function convert (buffer, from, to, target) {
 
 	//dst is automatically filled with mapped values
 	//but in some cases mapped badly, e. g. float → int(round + rotate)
-	var dst = to.type === 'array' ? Array.from(src) : new (dtypes[to.dtype])(src)
+	var dst = to.type === 'array' ? Array.from(src) : new (dtypeClass[to.dtype])(src)
 
 	//if range differ, we should apply more thoughtful mapping
 	if (from.max !== to.max) {
@@ -177,7 +180,7 @@ function isContainer (arg) {
 }
 
 
-var dtypes = {
+var dtypeClass = {
 	'uint8': Uint8Array,
 	'uint8_clamped': Uint8ClampedArray,
 	'uint16': Uint16Array,
@@ -192,45 +195,28 @@ var dtypes = {
 	'buffer': Uint8Array,
 }
 
+var defaultDtype = {
+	'float32': 'float32',
+	'audiobuffer': 'float32',
+	'ndsamples': 'float32',
+	'ndarray': 'float32',
+	'float64': 'float64',
+	'buffer': 'uint8',
+	'arraybuffer': 'uint8',
+	'uint8': 'uint8',
+	'uint8_clamped': 'uint8',
+	'uint16': 'uint16',
+	'uint32': 'uint32',
+	'int8': 'int8',
+	'int16': 'int16',
+	'int32': 'int32',
+	'array': 'array'
+}
+
 //make sure all format properties are present
 function normalize (obj) {
 	if (!obj.dtype) {
-		//ensure dtype
-		switch (obj.type) {
-			case 'float32':
-			case 'audiobuffer':
-			case 'ndsamples':
-			case 'ndarray':
-				obj.dtype = 'float32'
-				break;
-			case 'float64':
-				obj.dtype = 'float64'
-				break;
-			case 'buffer':
-			case 'arraybuffer':
-			case 'uint8':
-			case 'uint8_clamped':
-				obj.dtype = 'uint8'
-				break;
-			case 'uint16':
-				obj.dtype = 'uint16'
-				break;
-			case 'uint32':
-				obj.dtype = 'uint32'
-				break;
-			case 'int8':
-				obj.dtype = 'int8'
-				break;
-			case 'int16':
-				obj.dtype = 'int16'
-				break;
-			case 'int32':
-				obj.dtype = 'int32'
-				break;
-			default:
-				obj.dtype = 'array'
-				break;
-		}
+		obj.dtype = defaultDtype[obj.type] || 'array'
 	}
 
 	//provide limits
