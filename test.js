@@ -4,6 +4,7 @@ var test = require('tape')
 var convert = require('./')
 var AudioBuffer = require('audio-buffer')
 var isAudioBuffer = require('is-audio-buffer')
+var ABList = require('audio-buffer-list')
 
 test('floatLE to int16BE', function (t) {
 	var buf = new Buffer(8);
@@ -230,6 +231,18 @@ test('output arraybuffer should preserve input dtype', t => {
 
 	t.ok(res instanceof ArrayBuffer)
 	t.deepEqual(new Float32Array(res), [-1,0,1])
+
+	t.end()
+})
+
+test('audio-buffer-list', t => {
+	let res = convert(new ABList(10, {channels: 2}), 'float32')
+
+	t.ok(res instanceof Float32Array)
+
+	t.equal(res.length, 20)
+
+	t.equal(res[0], 0)
 
 	t.end()
 })

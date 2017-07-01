@@ -73,9 +73,15 @@ function convert (buffer, from, to, target) {
 
 	//convert buffer/alike to arrayBuffer
 	var src
-	if (isAudioBuffer(buffer)) {
+	if (isAudioBuffer(buffer) || buffer.buffers || (buffer.buffer && buffer.buffer.buffers)) {
 		if (buffer._data) src = buffer._data
 		else {
+			//handle audio
+			if (buffer.buffer) buffer = buffer
+
+			//handle audiobufferlist
+			if (buffer.buffers) buffer = buffer.copy()
+
 			src = new Float32Array(buffer.length * buffer.numberOfChannels)
 			for (var c = 0, l = buffer.numberOfChannels; c < l; c++) {
 				src.set(buffer.getChannelData(c), buffer.length * c)
