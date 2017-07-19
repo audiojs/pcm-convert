@@ -254,3 +254,11 @@ test('full args', t => {
 
 	t.end()
 })
+
+test('put data to arraybuffer', t => {
+	let res = convert(new Uint8Array([127, 255]), new ArrayBuffer(2))
+
+	t.deepEqual(new Uint8Array(res), [127, 255])
+
+	t.end()
+})

@@ -167,7 +167,6 @@ function convert (buffer, from, to, target) {
 		//TODO
 	}
 
-	if (to.type === 'arraybuffer' || to.type === 'buffer') dst = dst.buffer
 
 	if (target) {
 		if (Array.isArray(target)) {
@@ -175,11 +174,18 @@ function convert (buffer, from, to, target) {
 				target[i] = dst[i]
 			}
 		}
+		else if (target instanceof ArrayBuffer) {
+			let targetContainer = new dtypeClass[to.dtype](target)
+			targetContainer.set(dst)
+			target = targetContainer
+		}
 		else {
 			target.set(dst)
 		}
 		dst = target
 	}
+
+	if (to.type === 'arraybuffer' || to.type === 'buffer') dst = dst.buffer
 
 	return dst
 }
