@@ -27,7 +27,7 @@ function convert (buffer, from, to, target) {
 		from = format.detect(buffer)
 	}
 	//if no source format defined, just target format
-	else if (to === undefined) {
+	else if (to === undefined && target === undefined) {
 		to = getFormat(from)
 		from = format.detect(buffer)
 	}
@@ -71,17 +71,20 @@ function convert (buffer, from, to, target) {
 	normalize(from)
 	normalize(to)
 
-	//convert buffer/alike to arrayBuffer
+	//audio-buffer-list/audio types
+	if (buffer.buffers || (buffer.buffer && buffer.buffer.buffers)) {
+		//handle audio
+		if (buffer.buffer) buffer = buffer.buffer
+
+		//handle audiobufferlist
+		if (buffer.buffers) buffer = buffer.join()
+	}
+
 	var src
-	if (isAudioBuffer(buffer) || buffer.buffers || (buffer.buffer && buffer.buffer.buffers)) {
+	//convert buffer/alike to arrayBuffer
+	if (isAudioBuffer(buffer)) {
 		if (buffer._data) src = buffer._data
 		else {
-			//handle audio
-			if (buffer.buffer) buffer = buffer
-
-			//handle audiobufferlist
-			if (buffer.buffers) buffer = buffer.copy()
-
 			src = new Float32Array(buffer.length * buffer.numberOfChannels)
 			for (var c = 0, l = buffer.numberOfChannels; c < l; c++) {
 				src.set(buffer.getChannelData(c), buffer.length * c)
@@ -158,6 +161,10 @@ function convert (buffer, from, to, target) {
 		for (var i = 0, l = dst.length; i < l; i++) {
 			view[methodName](i*step, dst[i], le)
 		}
+	}
+
+	if (to.type === 'audiobuffer') {
+		//TODO
 	}
 
 	if (to.type === 'arraybuffer' || to.type === 'buffer') dst = dst.buffer

@@ -246,3 +246,11 @@ test('audio-buffer-list', t => {
 
 	t.end()
 })
+
+test('full args', t => {
+	let res = convert([0, 1], 'float32', undefined, new Uint8Array(2))
+
+	t.deepEqual(res, [127, 255])
+
+	t.end()
+})
