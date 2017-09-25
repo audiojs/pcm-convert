@@ -39,13 +39,13 @@ function convert (buffer, from, to, target) {
 	}
 	//all arguments
 	else {
-		let inFormat = getFormat(from)
-		let srcFormat = format.detect(buffer)
+		var inFormat = getFormat(from)
+		var srcFormat = format.detect(buffer)
 		srcFormat.dtype = inFormat.type === 'arraybuffer' ? srcFormat.type : inFormat.type
 		from = extend(inFormat, srcFormat)
 
-		let outFormat = getFormat(to)
-		let dstFormat = format.detect(target)
+		var outFormat = getFormat(to)
+		var dstFormat = format.detect(target)
 		dstFormat.dtype = outFormat.type === 'arraybuffer' ? (dstFormat.type || from.dtype) : outFormat.type
 		to = extend(outFormat, dstFormat)
 	}
@@ -175,7 +175,8 @@ function convert (buffer, from, to, target) {
 			}
 		}
 		else if (target instanceof ArrayBuffer) {
-			let targetContainer = new dtypeClass[to.dtype](target)
+			var
+			targetContainer = new dtypeClass[to.dtype](target)
 			targetContainer.set(dst)
 			target = targetContainer
 		}
