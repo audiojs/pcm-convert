@@ -47,11 +47,11 @@ let uint16arr = convert([0, 0, 1, 1], 'float32 le stereo planar', 'uint16 interl
 
 ### convert(src, srcFormat?, dstFormat?, dst?)
 
-Takes data in `src` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with markers or an object with properties, see [audio-format](https://github.com/audio-format) module. If `srcFormat` is skipped, it is detected from `src`. Optionally a destination container can be provided as `dst`, and in case if `dstFormat` is skipped, it will be detected from `dst`.
+Takes data in `src` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with tags or an object with properties, see [audio-format](https://github.com/audio-format) module. If `srcFormat` is skipped, it is detected from `src`. Optionally a destination container can be provided as `dst`, and in case if `dstFormat` is skipped, it will be detected from `dst`.
 
 #### Source
 
-Source format is inferred from `source` data type, and extended with `srcFormat` properties. By default source is considered to have `planar mono le` properties. Every source type is handled as having the following data type:
+Source format is inferred from `src` data type and extended with `srcFormat` properties. By default source is considered `planar mono le`. Source data types:
 
 | Type | Dtype |
 |---|---|
@@ -70,7 +70,7 @@ Source format is inferred from `source` data type, and extended with `srcFormat`
 
 #### Format
 
-Format can be defined as `dtype` string with markers, eg. `'uint8 interleaved mono le'`, or `'float64 planar quad'` (markers can be skipped), or an object with the following properties:
+Can be defined as `dtype` string with tags, eg. `'uint8 interleaved mono le'`, `'float64 planar quad'` (some tags can be skipped), or an object with the following properties:
 
 | Property | Meaning |
 |---|---|
