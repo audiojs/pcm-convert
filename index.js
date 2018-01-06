@@ -46,7 +46,9 @@ function convert (buffer, from, to, target) {
 
 		var outFormat = getFormat(to)
 		var dstFormat = format.detect(target)
-		dstFormat.dtype = outFormat.type === 'arraybuffer' ? (dstFormat.type || from.dtype) : outFormat.type
+		if (outFormat.type) {
+			dstFormat.dtype = outFormat.type === 'arraybuffer' ? (dstFormat.type || from.dtype) : outFormat.type
+		}
 		to = extend(outFormat, dstFormat)
 	}
 
