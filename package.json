@@ -27,7 +27,7 @@
     "audio-buffer": "^4.0.4",
     "audio-buffer-list": "^4.0.1",
     "audio-context": "^1.0.1",
-    "tape": "^4.6.3"
+    "tape": "^5.0.0"
   },
   "dependencies": {
     "audio-format": "^2.3.2",
