@@ -1,10 +1,12 @@
 {
   "name": "pcm-convert",
-  "version": "1.6.5",
-  "description": "Convert pcm data from one format to another",
+  "version": "2.0.0",
+  "description": "Convert PCM audio data between formats",
+  "type": "module",
   "main": "index.js",
+  "exports": "./index.js",
   "scripts": {
-    "test": "node test --harmony"
+    "test": "node --test test.js"
   },
   "repository": {
     "type": "git",
@@ -23,16 +25,6 @@
   },
   "homepage": "https://github.com/audiojs/pcm-convert#readme",
   "devDependencies": {
-    "almost-equal": "^1.1.0",
-    "audio-buffer": "^4.0.4",
-    "audio-buffer-list": "^4.0.1",
-    "audio-context": "^1.0.1",
-    "tape": "^4.6.3"
-  },
-  "dependencies": {
-    "audio-format": "^2.3.2",
-    "is-audio-buffer": "^1.0.11",
-    "is-buffer": "^1.1.5",
-    "object-assign": "^4.1.1"
+    "audio-buffer": "^6.0.0"
   }
 }

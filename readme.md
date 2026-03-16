@@ -1,45 +1,45 @@
-# pcm-convert [![unstable](https://img.shields.io/badge/stability-unstable-green.svg)](http://github.com/badges/stability-badges) [![Build Status](https://img.shields.io/travis/audiojs/pcm-convert.svg)](https://travis-ci.org/audiojs/pcm-convert) [![Greenkeeper badge](https://badges.greenkeeper.io/audiojs/pcm-convert.svg)](https://greenkeeper.io/)
+# pcm-convert [![stable](https://img.shields.io/badge/stability-stable-green.svg)](http://github.com/badges/stability-badges)
 
-Convert data from one pcm-format to another.
+Convert PCM audio data between formats. Zero dependencies, ESM.
 
 ## Usage
 
 [![npm install pcm-convert](https://nodei.co/npm/pcm-convert.png?mini=true)](https://npmjs.org/package/pcm-convert/)
 
 ```js
-const convert = require('pcm-convert')
+import convert from 'pcm-convert'
 
-//convert data from float32 to uint8 array
+// float32 → uint8
 let uint8arr = convert([0, 0.1, 0.1, 0], 'float32', 'uint8')
 
-//convert interleaved uint8 to planar float32 array
+// interleaved uint8 → planar float32
 let float32arr = convert(new Uint8Array([127, 200, 127, 200]), 'uint8 stereo interleaved', 'float32 planar')
 
-//deinterleave keeping the same data type
-let int8arr = convert(new Int8Array([-100,100,-100,100]), 'interleaved', 'planar')
+// deinterleave, same dtype
+let int8arr = convert(new Int8Array([-100, 100, -100, 100]), 'interleaved', 'planar')
 
-//change endianness keeping the same data type
-let float32be = convert(new Float32Array([1,.5,-.5,-1]), 'le', 'be')
+// endianness swap
+let float32be = convert(new Float32Array([1, .5, -.5, -1]), 'le', 'be')
 
-//use objects as formats
+// object formats
 let float64 = convert(float32be, {
-	dtype: 'float32',
-	channels: 2,
-	interleaved: false,
-	endianness: 'be'
+  dtype: 'float32',
+  channels: 2,
+  interleaved: false,
+  endianness: 'be'
 }, {
-	dtype: 'float64',
-	interleaved: true,
-	endianness: 'le'
+  dtype: 'float64',
+  interleaved: true,
+  endianness: 'le'
 })
 
-//skip source format string, convert directly to data format
-let uint16 = convert(new Uint8Array([0,255]), 'uint16')
+// auto-detect source, convert to target
+let uint16 = convert(new Uint8Array([0, 255]), 'uint16')
 
-//put data into target container skipping format strings
-convert(new Uint8Array([0,255]), new Uint16Array(2))
+// write into existing container
+convert(new Uint8Array([0, 255]), new Uint16Array(2))
 
-//full arguments case
+// full arguments
 let uint16arr = convert([0, 0, 1, 1], 'float32 le stereo planar', 'uint16 interleaved be', new Uint16Array(4))
 ```
 
@@ -47,15 +47,13 @@ let uint16arr = convert([0, 0, 1, 1], 'float32 le stereo planar', 'uint16 interl
 
 ### convert(src, srcFormat?, dstFormat?, dst?)
 
-Takes data in `src` container and converts from `srcFormat` to `dstFormat`. Format can be whether a string with tags or an object with properties, see [audio-format](https://github.com/audio-format) module. If `srcFormat` is skipped, it is detected from `src`. Optionally a destination container can be provided as `dst`, and in case if `dstFormat` is skipped, it will be detected from `dst`.
+Convert `src` from `srcFormat` to `dstFormat`. Format can be a string with space-separated tags or an object. If `srcFormat` is omitted, it is detected from `src`. If `dst` container is provided, result is written into it.
 
-#### Source
-
-Source format is inferred from `src` data type and extended with `srcFormat` properties. By default source is considered `planar mono le`. Source data types:
+#### Source types
 
 | Type | Dtype |
 |---|---|
-| `Array` | `float32` |
+| `Array` | float range (−1..1) |
 | `Float32Array` | `float32` |
 | `Float64Array` | `float64` |
 | `ArrayBuffer` | `uint8` |
@@ -67,26 +65,25 @@ Source format is inferred from `src` data type and extended with `srcFormat` pro
 | `Int8Array` | `int8` |
 | `Int16Array` | `int16` |
 | `Int32Array` | `int32` |
+| `AudioBuffer` | `float32` (planar) |
 
 #### Format
 
-Can be defined as `dtype` string with tags, eg. `'uint8 interleaved mono le'`, `'float64 planar quad'` (some tags can be skipped), or an object with the following properties:
+String: `'uint8 interleaved stereo le'`, `'float64 planar quad'` — tokens in any order, all optional.
 
-| Property | Meaning |
+Object:
+
+| Property | Values |
 |---|---|
-| `dtype` | Data type string: `uint8`, `uint16`, `uint32`, `int8`, `int16`, `int32`, `float32`, `float64`, `array` (only `dstFormat`), `arraybuffer` (only `dstFormat`).  |
-| `interleaved` | Boolean indicating if data has `interleaved` or `planar` layout. |
-| `channels` | Number of channels in source: `mono`, `stereo`, `quad`, `5.1`. |
-| `endianness` | `be` or `le`, defaults to OS endianness. |
+| `dtype` | `uint8`, `uint16`, `uint32`, `int8`, `int16`, `int32`, `float32`, `float64` |
+| `interleaved` | `true` (interleaved) or `false` (planar) |
+| `channels` | Number, or string: `mono`, `stereo`, `quad`, `5.1` |
+| `endianness` | `le` or `be` |
 
-
-
-## Related
-
-* [audio-format](https://github.com/audiojs/audio-format) - audio format notation parser/stringifier.
-* [audio-speaker](https://github.com/audiojs/audio-speaker) - output data to speaker in node.
-* [dtype](https://github.com/shama/dtype) - list of standard data types.
+Container tokens for output: `array`, `arraybuffer`, `buffer`.
 
 ## License
 
-© 2017 Dima Yv. MIT License
+MIT
+
+<p align=center><a href="https://github.com/krishnized/license/">ॐ</a></p>

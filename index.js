@@ -1,285 +1,166 @@
 /**
  * @module pcm-convert
+ * Convert PCM audio data between formats
  */
-'use strict'
 
-var assert = require('assert')
-var isBuffer = require('is-buffer')
-var format = require('audio-format')
-var extend = require('object-assign')
-var isAudioBuffer = require('is-audio-buffer')
+const DTYPE = {
+	float32: { C: Float32Array, min: -1, max: 1 },
+	float64: { C: Float64Array, min: -1, max: 1 },
+	uint8:   { C: Uint8Array,   min: 0,  max: 255 },
+	uint16:  { C: Uint16Array,  min: 0,  max: 65535 },
+	uint32:  { C: Uint32Array,  min: 0,  max: 4294967295 },
+	int8:    { C: Int8Array,    min: -128, max: 127 },
+	int16:   { C: Int16Array,   min: -32768, max: 32767 },
+	int32:   { C: Int32Array,   min: -2147483648, max: 2147483647 },
+}
 
-module.exports = convert
+const CHANNELS = { mono: 1, stereo: 2, quad: 4, '5.1': 6 }
 
-function convert (buffer, from, to, target) {
-	assert(buffer, 'First argument should be data')
-	assert(from, 'Second argument should be format string or object')
+const isTyped = v => ArrayBuffer.isView(v) && !(v instanceof DataView)
+const isContainer = v => v != null && typeof v !== 'string' && (Array.isArray(v) || isTyped(v) || v instanceof ArrayBuffer)
+const isAudioBuffer = v => v != null && typeof v.getChannelData === 'function' && typeof v.numberOfChannels === 'number'
 
-	//quick ignore
-	if (from === to) {
-		return buffer
+// Parse format string or object into normalized descriptor
+function parse(fmt) {
+	if (!fmt) return {}
+	if (typeof fmt !== 'string') {
+		let d = fmt.dtype || (fmt.type && DTYPE[fmt.type] ? fmt.type : null)
+		let r = {}
+		if (d) r.dtype = d
+		if (fmt.channels != null) r.channels = fmt.channels
+		if (fmt.interleaved != null) r.interleaved = fmt.interleaved
+		if (fmt.endianness) r.endianness = fmt.endianness
+		return r
+	}
+	let r = {}
+	for (let t of fmt.split(/\s+/)) {
+		let lo = t.toLowerCase()
+		if (DTYPE[lo]) r.dtype = lo
+		else if (CHANNELS[lo]) r.channels = CHANNELS[lo]
+		else if (lo === 'interleaved') r.interleaved = true
+		else if (lo === 'planar') r.interleaved = false
+		else if (lo === 'le' || lo === 'be') r.endianness = lo
+		else if (lo === 'array') r.container = 'array'
+		else if (lo === 'arraybuffer') r.container = 'arraybuffer'
+		else if (lo === 'buffer') r.container = 'buffer'
+		else if (lo === 'audiobuffer') r.dtype = 'float32'
+		else throw Error('Unknown format token: ' + t)
+	}
+	return r
+}
+
+// Detect format from data type
+function detect(data) {
+	if (data == null) return {}
+	if (isAudioBuffer(data)) return { dtype: 'float32', channels: data.numberOfChannels, interleaved: false }
+	// Buffer before typed array loop — Buffer extends Uint8Array but needs distinct detection
+	if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) return { dtype: 'uint8', container: 'buffer' }
+	for (let k in DTYPE) if (data instanceof DTYPE[k].C) return { dtype: k }
+	if (data instanceof Uint8ClampedArray) return { dtype: 'uint8' }
+	if (data instanceof ArrayBuffer) return { container: 'arraybuffer' }
+	if (Array.isArray(data)) return { container: 'array' }
+	return {}
+}
+
+function range(dtype) { return DTYPE[dtype] || { min: -1, max: 1 } }
+
+export default function convert(src, from, to, dst) {
+	if (!src) throw Error('Source data required')
+	if (from == null) throw Error('Format required')
+
+	// Resolve overloaded arguments
+	if (to === undefined && dst === undefined) {
+		if (isContainer(from)) { dst = from; to = detect(dst); from = detect(src) }
+		else { to = parse(from); from = detect(src) }
+	} else if (dst === undefined) {
+		if (isContainer(to)) { dst = to; to = parse(from); from = detect(src) }
+		else { from = { ...detect(src), ...parse(from) }; to = parse(to) }
+	} else {
+		from = { ...detect(src), ...parse(from) }
+		to = { ...(dst ? detect(dst) : {}), ...parse(to) }
 	}
 
-	//2-containers case
-	if (isContainer(from)) {
-		target = from
-		to = format.detect(target)
-		from = format.detect(buffer)
+	// Fill defaults
+	if (!to.dtype) to.dtype = from.dtype
+	if (to.channels == null && from.channels != null) to.channels = from.channels
+	if (to.interleaved != null && from.interleaved == null) {
+		from.interleaved = !to.interleaved
+		if (!from.channels) from.channels = 2
 	}
-	//if no source format defined, just target format
-	else if (to === undefined && target === undefined) {
-		to = getFormat(from)
-		from = format.detect(buffer)
-	}
-	//if no source format but container is passed with from as target format
-	else if (isContainer(to)) {
-		target = to
-		to = getFormat(from)
-		from = format.detect(buffer)
-	}
-	//all arguments
-	else {
-		var inFormat = getFormat(from)
-		var srcFormat = format.detect(buffer)
-		srcFormat.dtype = inFormat.type === 'arraybuffer' ? srcFormat.type : inFormat.type
-		from = extend(inFormat, srcFormat)
+	if (from.interleaved != null && !from.channels) from.channels = 2
 
-		var outFormat = getFormat(to)
-		var dstFormat = format.detect(target)
-		if (outFormat.type) {
-			dstFormat.dtype = outFormat.type === 'arraybuffer' ? (dstFormat.type || from.dtype) : outFormat.type
-		}
-		to = extend(outFormat, dstFormat)
+	let fromR = from.container === 'array' ? { min: -1, max: 1 } : range(from.dtype)
+	let toR = to.container === 'array' ? { min: -1, max: 1 } : range(to.dtype)
+
+	// Extract source as indexable numeric sequence
+	let samples
+	if (isAudioBuffer(src)) {
+		let nc = src.numberOfChannels, len = src.length
+		samples = new Float32Array(len * nc)
+		for (let c = 0; c < nc; c++) samples.set(src.getChannelData(c), len * c)
+	} else if (src instanceof ArrayBuffer) {
+		samples = new (DTYPE[from.dtype]?.C || Uint8Array)(src)
+	} else if (typeof Buffer !== 'undefined' && Buffer.isBuffer(src)) {
+		samples = new (DTYPE[from.dtype]?.C || Uint8Array)(
+			src.buffer.slice(src.byteOffset, src.byteOffset + src.byteLength)
+		)
+	} else {
+		samples = src
 	}
 
-	if (to.channels == null && from.channels != null) {
-		to.channels = from.channels
-	}
+	let len = samples.length
+	let needsMap = fromR.min !== toR.min || fromR.max !== toR.max
+	let reinterleave = from.interleaved != null && to.interleaved != null && from.interleaved !== to.interleaved
+	let ch = from.channels || 1, seg = Math.floor(len / ch)
+	let Ctor = DTYPE[to.dtype]?.C || Float32Array
 
-	if (to.type == null) {
-		to.type = from.type
-		to.dtype = from.dtype
-	}
-
-	if (to.interleaved != null && from.channels == null) {
-		from.channels = 2
-	}
-
-	//ignore same format
-	if (from.type === to.type &&
-		from.interleaved === to.interleaved &&
-		from.endianness === to.endianness) return buffer
-
-	normalize(from)
-	normalize(to)
-
-	//audio-buffer-list/audio types
-	if (buffer.buffers || (buffer.buffer && buffer.buffer.buffers)) {
-		//handle audio
-		if (buffer.buffer) buffer = buffer.buffer
-
-		//handle audiobufferlist
-		if (buffer.buffers) buffer = buffer.join()
-	}
-
-	var src
-	//convert buffer/alike to arrayBuffer
-	if (isAudioBuffer(buffer)) {
-		if (buffer._data) src = buffer._data
-		else {
-			src = new Float32Array(buffer.length * buffer.numberOfChannels)
-			for (var c = 0, l = buffer.numberOfChannels; c < l; c++) {
-				src.set(buffer.getChannelData(c), buffer.length * c)
+	// Conversion: fast copy / range map / reinterleave
+	let out
+	if (!needsMap && !reinterleave) {
+		out = to.container === 'array' ? Array.from(samples) : new Ctor(samples)
+	} else {
+		out = to.container === 'array' ? new Array(len) : new Ctor(len)
+		let fromSpan = fromR.max - fromR.min, toSpan = toR.max - toR.min
+		if (!reinterleave) {
+			for (let i = 0; i < len; i++) {
+				let v = ((samples[i] - fromR.min) / fromSpan) * toSpan + toR.min
+				out[i] = v < toR.min ? toR.min : v > toR.max ? toR.max : v
+			}
+		} else {
+			let deint = from.interleaved
+			for (let i = 0; i < len; i++) {
+				let si = deint ? (i % seg) * ch + ~~(i / seg) : (i % ch) * seg + ~~(i / ch)
+				let v = samples[si]
+				if (needsMap) {
+					v = ((v - fromR.min) / fromSpan) * toSpan + toR.min
+					if (v < toR.min) v = toR.min
+					else if (v > toR.max) v = toR.max
+				}
+				out[i] = v
 			}
 		}
 	}
-	else if (buffer instanceof ArrayBuffer) {
-		src = new (dtypeClass[from.dtype])(buffer)
-	}
-	else if (isBuffer(buffer)) {
-		if (buffer.byteOffset != null) src = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-		else src = buffer.buffer;
 
-		src = new (dtypeClass[from.dtype])(src)
-	}
-	//typed arrays are unchanged as is
-	else {
-		src = buffer
+	// Write to caller-provided target
+	if (dst) {
+		if (Array.isArray(dst)) { for (let i = 0; i < len; i++) dst[i] = out[i]; out = dst }
+		else if (dst instanceof ArrayBuffer) { let tc = new (DTYPE[to.dtype]?.C || Uint8Array)(dst); tc.set(out); out = tc }
+		else { dst.set(out); out = dst }
 	}
 
-	//dst is automatically filled with mapped values
-	//but in some cases mapped badly, e. g. float → int(round + rotate)
-	var dst = to.type === 'array' ? Array.from(src) : new (dtypeClass[to.dtype])(src)
-
-	//if range differ, we should apply more thoughtful mapping
-	if (from.max !== to.max) {
-		var fromRange = from.max - from.min, toRange = to.max - to.min
-		for (var i = 0, l = src.length; i < l; i++) {
-			var value = src[i]
-
-			//ignore not changed range
-			//bring to 0..1
-			var normalValue = (value - from.min) / fromRange
-
-			//bring to new format ranges
-			value = normalValue * toRange + to.min
-
-			//clamp (buffers do not like values outside of bounds)
-			dst[i] = Math.max(to.min, Math.min(to.max, value))
-		}
+	// Endianness swap — after dst write so .set() doesn't undo byte reordering
+	let info = DTYPE[to.dtype]
+	if (info && info.C.BYTES_PER_ELEMENT > 1 &&
+		from.endianness && to.endianness && from.endianness !== to.endianness &&
+		out.buffer) {
+		let le = to.endianness === 'le'
+		let view = new DataView(out.buffer)
+		let step = info.C.BYTES_PER_ELEMENT
+		let fn = 'set' + to.dtype[0].toUpperCase() + to.dtype.slice(1)
+		for (let i = 0; i < len; i++) view[fn](i * step, out[i], le)
 	}
 
-	//reinterleave, if required
-	if (from.interleaved != to.interleaved) {
-		var channels = from.channels
-		var len = Math.floor(src.length / channels)
-
-		//deinterleave
-		if (from.interleaved && !to.interleaved) {
-			dst = dst.map(function (value, idx, data) {
-				var offset = idx % len
-				var channel = ~~(idx / len)
-
-				return data[offset * channels + channel]
-			})
-		}
-		//interleave
-		else if (!from.interleaved && to.interleaved) {
-			dst = dst.map(function (value, idx, data) {
-				var offset = ~~(idx / channels)
-				var channel = idx % channels
-
-				return data[channel * len + offset]
-			})
-		}
-	}
-
-	//ensure endianness
-	if (to.dtype != 'array' && to.dtype != 'int8' && to.dtype != 'uint8' && from.endianness && to.endianness && from.endianness !== to.endianness) {
-		var le = to.endianness === 'le'
-		var view = new DataView(dst.buffer)
-		var step = dst.BYTES_PER_ELEMENT
-		var methodName = 'set' + to.dtype[0].toUpperCase() + to.dtype.slice(1)
-		for (var i = 0, l = dst.length; i < l; i++) {
-			view[methodName](i*step, dst[i], le)
-		}
-	}
-
-	if (to.type === 'audiobuffer') {
-		//TODO
-	}
-
-
-	if (target) {
-		if (Array.isArray(target)) {
-			for (var i = 0; i < dst.length; i++) {
-				target[i] = dst[i]
-			}
-		}
-		else if (target instanceof ArrayBuffer) {
-			var
-			targetContainer = new dtypeClass[to.dtype](target)
-			targetContainer.set(dst)
-			target = targetContainer
-		}
-		else {
-			target.set(dst)
-		}
-		dst = target
-	}
-
-	if (to.type === 'arraybuffer' || to.type === 'buffer') dst = dst.buffer
-
-	return dst
-}
-
-function getFormat (arg) {
-	return typeof arg === 'string' ? format.parse(arg) : format.detect(arg)
-}
-
-function isContainer (arg) {
-	return typeof arg != 'string' && (Array.isArray(arg) || ArrayBuffer.isView(arg) || arg instanceof ArrayBuffer)
-}
-
-
-var dtypeClass = {
-	'uint8': Uint8Array,
-	'uint8_clamped': Uint8ClampedArray,
-	'uint16': Uint16Array,
-	'uint32': Uint32Array,
-	'int8': Int8Array,
-	'int16': Int16Array,
-	'int32': Int32Array,
-	'float32': Float32Array,
-	'float64': Float64Array,
-	'array': Array,
-	'arraybuffer': Uint8Array,
-	'buffer': Uint8Array,
-}
-
-var defaultDtype = {
-	'float32': 'float32',
-	'audiobuffer': 'float32',
-	'ndsamples': 'float32',
-	'ndarray': 'float32',
-	'float64': 'float64',
-	'buffer': 'uint8',
-	'arraybuffer': 'uint8',
-	'uint8': 'uint8',
-	'uint8_clamped': 'uint8',
-	'uint16': 'uint16',
-	'uint32': 'uint32',
-	'int8': 'int8',
-	'int16': 'int16',
-	'int32': 'int32',
-	'array': 'array'
-}
-
-//make sure all format properties are present
-function normalize (obj) {
-	if (!obj.dtype) {
-		obj.dtype = defaultDtype[obj.type] || 'array'
-	}
-
-	//provide limits
-	switch (obj.dtype) {
-		case 'float32':
-		case 'float64':
-		case 'audiobuffer':
-		case 'ndsamples':
-		case 'ndarray':
-			obj.min = -1
-			obj.max = 1
-			break;
-		case 'uint8':
-			obj.min = 0
-			obj.max = 255
-			break;
-		case 'uint16':
-			obj.min = 0
-			obj.max = 65535
-			break;
-		case 'uint32':
-			obj.min = 0
-			obj.max = 4294967295
-			break;
-		case 'int8':
-			obj.min = -128
-			obj.max = 127
-			break;
-		case 'int16':
-			obj.min = -32768
-			obj.max = 32767
-			break;
-		case 'int32':
-			obj.min = -2147483648
-			obj.max = 2147483647
-			break;
-		default:
-			obj.min = -1
-			obj.max = 1
-			break;
-	}
-
-	return obj
+	// Return requested container type
+	if (to.container === 'arraybuffer' || to.container === 'buffer') return out.buffer || out
+	return out
 }
