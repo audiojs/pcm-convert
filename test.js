@@ -1,9 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
-import convert from './index.js'
+import convert, { parse, detect, stringify, sampleRates } from './index.js'
 import AudioBuffer from 'audio-buffer'
 
 const eq = (a, b) => assert.deepStrictEqual([...a], b)
+
+// === Existing convert tests ===
 
 test('float32 LE → int16 BE', () => {
 	let buf = Buffer.alloc(8)
@@ -84,12 +86,12 @@ test('auto-detect source format', () => {
 test('AudioBuffer input', () => {
 	let buf1 = new AudioBuffer({ length: 4, sampleRate: 44100 })
 	buf1.getChannelData(0).set([0, 0, 1, 1])
-	eq(convert(buf1, 'audiobuffer', 'array'), [0, 0, 1, 1])
+	eq(convert(buf1, 'array'), [0, 0, 1, 1])
 
 	let buf2 = new AudioBuffer({ length: 2, numberOfChannels: 2, sampleRate: 44100 })
 	buf2.getChannelData(0).set([1, 0])
 	buf2.getChannelData(1).set([0, 1])
-	eq(convert(buf2, 'audiobuffer', 'array'), [1, 0, 0, 1])
+	eq(convert(buf2, 'array'), [1, 0, 0, 1])
 })
 
 test('AudioBuffer to float32', () => {
@@ -155,4 +157,161 @@ test('endianness swap with destination target', () => {
 	let raw = Buffer.from(dst.buffer)
 	assert.equal(raw.readInt16BE(0), 32767)
 	assert.equal(raw.readInt16BE(2), -16384)
+})
+
+// === Planar channel array input (absorbs pcm-encode) ===
+
+test('Float32Array[] → int16 interleaved', () => {
+	let left = new Float32Array([1, -1])
+	let right = new Float32Array([0, 0.5])
+	let out = convert([left, right], 'int16 interleaved')
+	assert.ok(out instanceof Int16Array)
+	eq(out, [32767, 0, -32768, 16383])
+})
+
+test('Float32Array[] → float32 interleaved', () => {
+	let left = new Float32Array([1, 0])
+	let right = new Float32Array([0, 1])
+	let out = convert([left, right], 'float32 interleaved')
+	eq(out, [1, 0, 0, 1])
+})
+
+test('Float32Array[] → int16 planar (no reinterleave)', () => {
+	let left = new Float32Array([1, -1])
+	let right = new Float32Array([0, 0.5])
+	let out = convert([left, right], 'int16')
+	eq(out, [32767, -32768, 0, 16383])
+})
+
+test('Float32Array[] mono', () => {
+	let ch = new Float32Array([1, 0, -1])
+	let out = convert([ch], 'int16')
+	eq(out, [32767, 0, -32768])
+})
+
+test('Int16Array[] → float32 interleaved', () => {
+	let left = new Int16Array([32767, -32768])
+	let right = new Int16Array([0, 16384])
+	let out = convert([left, right], 'float32 interleaved')
+	assert.ok(out instanceof Float32Array)
+	assert.ok(Math.abs(out[0] - 1) < 0.001)
+	assert.ok(Math.abs(out[2] - (-1)) < 0.001)
+})
+
+// === Format parse tests ===
+
+test('parse: basic format string', () => {
+	let f = parse('float32 stereo planar le')
+	assert.equal(f.dtype, 'float32')
+	assert.equal(f.channels, 2)
+	assert.equal(f.interleaved, false)
+	assert.equal(f.endianness, 'le')
+})
+
+test('parse: sample rate', () => {
+	let f = parse('int16 stereo 44100')
+	assert.equal(f.dtype, 'int16')
+	assert.equal(f.channels, 2)
+	assert.equal(f.sampleRate, 44100)
+})
+
+test('parse: comma/semicolon separators', () => {
+	let f = parse('float32, stereo, planar')
+	assert.equal(f.dtype, 'float32')
+	assert.equal(f.channels, 2)
+	assert.equal(f.interleaved, false)
+})
+
+test('parse: aliases', () => {
+	assert.equal(parse('float').dtype, 'float32')
+	assert.equal(parse('int').dtype, 'int32')
+	assert.equal(parse('uint').dtype, 'uint32')
+	assert.equal(parse('interleave').interleaved, true)
+	assert.equal(parse('littleendian').endianness, 'le')
+	assert.equal(parse('bigendian').endianness, 'be')
+})
+
+test('parse: channel aliases', () => {
+	assert.equal(parse('mono').channels, 1)
+	assert.equal(parse('quad').channels, 4)
+	assert.equal(parse('5.1').channels, 6)
+	assert.equal(parse('2.1').channels, 3)
+})
+
+test('parse: object with type alias', () => {
+	let f = parse({ type: 'float32', channels: 2 })
+	assert.equal(f.dtype, 'float32')
+	assert.equal(f.channels, 2)
+})
+
+test('parse: object with numberOfChannels', () => {
+	let f = parse({ dtype: 'int16', numberOfChannels: 6 })
+	assert.equal(f.dtype, 'int16')
+	assert.equal(f.channels, 6)
+})
+
+test('parse: audiobuffer token throws', () => {
+	assert.throws(() => parse('audiobuffer'), /Unknown format token/)
+})
+
+// === Format detect tests ===
+
+test('detect: typed arrays', () => {
+	assert.equal(detect(new Float32Array(1)).dtype, 'float32')
+	assert.equal(detect(new Int16Array(1)).dtype, 'int16')
+	assert.equal(detect(new Uint8Array(1)).dtype, 'uint8')
+})
+
+test('detect: AudioBuffer', () => {
+	let buf = new AudioBuffer({ length: 4, numberOfChannels: 2, sampleRate: 48000 })
+	let f = detect(buf)
+	assert.equal(f.dtype, 'float32')
+	assert.equal(f.channels, 2)
+	assert.equal(f.interleaved, false)
+	assert.equal(f.sampleRate, 48000)
+})
+
+test('detect: planar channel arrays', () => {
+	let f = detect([new Float32Array(4), new Float32Array(4)])
+	assert.equal(f.dtype, 'float32')
+	assert.equal(f.channels, 2)
+	assert.equal(f.interleaved, false)
+})
+
+test('detect: plain array', () => {
+	assert.equal(detect([1, 2, 3]).container, 'array')
+})
+
+test('detect: ArrayBuffer', () => {
+	assert.equal(detect(new ArrayBuffer(4)).container, 'arraybuffer')
+})
+
+// === Format stringify tests ===
+
+test('stringify: basic', () => {
+	assert.equal(stringify({ dtype: 'float32', channels: 2, interleaved: false }), 'float32 stereo planar')
+})
+
+test('stringify: omits le by default', () => {
+	assert.equal(stringify({ dtype: 'int16', endianness: 'le' }), 'int16')
+	assert.equal(stringify({ dtype: 'int16', endianness: 'be' }), 'int16 be')
+})
+
+test('stringify: with sample rate', () => {
+	assert.equal(stringify({ dtype: 'float32', sampleRate: 44100 }), 'float32 44100')
+})
+
+test('stringify: omit nothing', () => {
+	let s = stringify({ dtype: 'int16', endianness: 'le' }, null)
+	assert.equal(s, 'int16 le')
+})
+
+// === Rates ===
+
+test('sampleRates: standard sample rates', () => {
+	assert.ok(Array.isArray(sampleRates))
+	assert.equal(sampleRates.length, 12)
+	assert.ok(sampleRates.includes(44100))
+	assert.ok(sampleRates.includes(48000))
+	assert.ok(sampleRates.includes(96000))
 })

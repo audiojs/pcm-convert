@@ -9,78 +9,107 @@ Convert PCM audio data between formats. Zero dependencies, ESM.
 ```js
 import convert from 'pcm-convert'
 
-// float32 → uint8
-let uint8arr = convert([0, 0.1, 0.1, 0], 'float32', 'uint8')
+// float32 → int16
+convert(new Float32Array([1, -1, 0.5]), 'int16')
 
 // interleaved uint8 → planar float32
-let float32arr = convert(new Uint8Array([127, 200, 127, 200]), 'uint8 stereo interleaved', 'float32 planar')
-
-// deinterleave, same dtype
-let int8arr = convert(new Int8Array([-100, 100, -100, 100]), 'interleaved', 'planar')
+convert(new Uint8Array([127, 200, 127, 200]), 'uint8 stereo interleaved', 'float32 planar')
 
 // endianness swap
-let float32be = convert(new Float32Array([1, .5, -.5, -1]), 'le', 'be')
+convert(new Float32Array([1, .5, -.5, -1]), 'le', 'be')
 
-// object formats
-let float64 = convert(float32be, {
-  dtype: 'float32',
-  channels: 2,
-  interleaved: false,
-  endianness: 'be'
-}, {
-  dtype: 'float64',
-  interleaved: true,
-  endianness: 'le'
-})
+// planar channel arrays → interleaved PCM (replaces pcm-encode)
+let left = new Float32Array([1, 0, -1])
+let right = new Float32Array([0, 0.5, -0.5])
+convert([left, right], 'int16 interleaved le')
+
+// AudioBuffer → int16
+convert(audioBuffer, 'int16 interleaved')
 
 // auto-detect source, convert to target
-let uint16 = convert(new Uint8Array([0, 255]), 'uint16')
+convert(new Uint8Array([0, 255]), 'uint16')
 
 // write into existing container
 convert(new Uint8Array([0, 255]), new Uint16Array(2))
 
-// full arguments
-let uint16arr = convert([0, 0, 1, 1], 'float32 le stereo planar', 'uint16 interleaved be', new Uint16Array(4))
+// object formats
+convert(data, { dtype: 'float32', channels: 2, interleaved: false }, { dtype: 'int16', interleaved: true })
+```
+
+### Format
+
+Format string parsing, detection, and serialization. Absorbs [audio-format](https://npmjs.org/package/audio-format) and [sample-rate](https://npmjs.org/package/sample-rate).
+
+```js
+import { parse, stringify, detect, sampleRates } from 'pcm-convert'
+
+parse('float32 stereo planar 44100')
+// → { dtype: 'float32', channels: 2, interleaved: false, sampleRate: 44100 }
+
+stringify({ dtype: 'float32', channels: 2, interleaved: false })
+// → 'float32 stereo planar'
+
+detect(new Float32Array(4))
+// → { dtype: 'float32' }
+
+detect([new Float32Array(4), new Float32Array(4)])
+// → { dtype: 'float32', channels: 2, interleaved: false }
+
+sampleRates
+// → [8000, 11025, 16000, 22050, 44100, 48000, ..., 384000]
 ```
 
 ## API
 
 ### convert(src, srcFormat?, dstFormat?, dst?)
 
-Convert `src` from `srcFormat` to `dstFormat`. Format can be a string with space-separated tags or an object. If `srcFormat` is omitted, it is detected from `src`. If `dst` container is provided, result is written into it.
+Convert `src` from `srcFormat` to `dstFormat`. If `srcFormat` is omitted, it is detected from `src`. If `dst` container is provided, result is written into it.
 
 #### Source types
 
 | Type | Dtype |
 |---|---|
-| `Array` | float range (−1..1) |
 | `Float32Array` | `float32` |
 | `Float64Array` | `float64` |
+| `Int8/16/32Array` | `int8/16/32` |
+| `Uint8/16/32Array` | `uint8/16/32` |
+| `Array` | float range (-1..1) |
+| `Float32Array[]` | planar channels |
+| `AudioBuffer` | `float32` planar |
 | `ArrayBuffer` | `uint8` |
 | `Buffer` | `uint8` |
-| `Uint8Array` | `uint8` |
-| `Uint8ClampedArray` | `uint8` |
-| `Uint16Array` | `uint16` |
-| `Uint32Array` | `uint32` |
-| `Int8Array` | `int8` |
-| `Int16Array` | `int16` |
-| `Int32Array` | `int32` |
-| `AudioBuffer` | `float32` (planar) |
 
-#### Format
+#### Format tokens
 
-String: `'uint8 interleaved stereo le'`, `'float64 planar quad'` — tokens in any order, all optional.
+String format: space-separated tokens in any order. Commas, semicolons, underscores also accepted as separators.
 
-Object:
+| Token | Values |
+|---|---|
+| dtype | `float32`, `float64`, `float`, `int8`, `int16`, `int32`, `int`, `uint8`, `uint16`, `uint32`, `uint` |
+| channels | `mono`, `stereo`, `quad`, `2.1`, `5.1`, `N-channel` |
+| layout | `interleaved`, `interleave`, `planar` |
+| endianness | `le`, `be`, `littleendian`, `bigendian` |
+| container | `array`, `arraybuffer`, `buffer` |
+| sample rate | `8000`, `11025`, `16000`, `22050`, `44100`, `48000`, `88200`, `96000`, `176400`, `192000`, `352800`, `384000` |
+
+Object format:
 
 | Property | Values |
 |---|---|
-| `dtype` | `uint8`, `uint16`, `uint32`, `int8`, `int16`, `int32`, `float32`, `float64` |
-| `interleaved` | `true` (interleaved) or `false` (planar) |
-| `channels` | Number, or string: `mono`, `stereo`, `quad`, `5.1` |
+| `dtype` (or `type`) | `float32`, `float64`, `int8`, `int16`, `int32`, `uint8`, `uint16`, `uint32` |
+| `channels` (or `numberOfChannels`) | number or `mono`, `stereo`, `quad`, `5.1` |
+| `interleaved` | `true` or `false` |
 | `endianness` | `le` or `be` |
+| `sampleRate` (or `rate`) | number |
+| `container` | `array`, `arraybuffer`, `buffer` |
 
-Container tokens for output: `array`, `arraybuffer`, `buffer`.
+## Absorbs
+
+v3 consolidates these packages:
+
+- [audio-format](https://npmjs.org/package/audio-format) → `parse`, `detect`, `stringify`
+- [sample-rate](https://npmjs.org/package/sample-rate) → `sampleRates`
+- `pcm-encode` (from web-audio-api) → `convert([...channels], format)`
 
 ## License
 
