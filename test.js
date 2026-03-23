@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
-import convert, { parse, detect, stringify, sampleRates } from './index.js'
+import convert, { parse, detect, stringify, sampleRate } from './index.js'
 import AudioBuffer from 'audio-buffer'
 
 const eq = (a, b) => assert.deepStrictEqual([...a], b)
@@ -308,10 +308,10 @@ test('stringify: omit nothing', () => {
 
 // === Rates ===
 
-test('sampleRates: standard sample rates', () => {
-	assert.ok(Array.isArray(sampleRates))
-	assert.equal(sampleRates.length, 12)
-	assert.ok(sampleRates.includes(44100))
-	assert.ok(sampleRates.includes(48000))
-	assert.ok(sampleRates.includes(96000))
+test('sampleRate: standard sample rates', () => {
+	assert.ok(Array.isArray(sampleRate))
+	assert.equal(sampleRate.length, 12)
+	assert.ok(sampleRate.includes(44100))
+	assert.ok(sampleRate.includes(48000))
+	assert.ok(sampleRate.includes(96000))
 })
