@@ -1,6 +1,6 @@
 # pcm-convert [![stable](https://img.shields.io/badge/stability-stable-green.svg)](http://github.com/badges/stability-badges)
 
-Convert PCM audio data between formats. Zero dependencies, ESM.
+Convert PCM audio data between formats.
 
 ## Usage
 
@@ -38,10 +38,10 @@ convert(data, { dtype: 'float32', channels: 2, interleaved: false }, { dtype: 'i
 
 ### Format
 
-Format string parsing, detection, and serialization. Absorbs [audio-format](https://npmjs.org/package/audio-format) and [sample-rate](https://npmjs.org/package/sample-rate).
+Format string parsing, detection, and serialization.
 
 ```js
-import { parse, stringify, detect, sampleRates } from 'pcm-convert'
+import { parse, stringify, detect, sampleRate } from 'pcm-convert'
 
 parse('float32 stereo planar 44100')
 // → { dtype: 'float32', channels: 2, interleaved: false, sampleRate: 44100 }
@@ -55,7 +55,7 @@ detect(new Float32Array(4))
 detect([new Float32Array(4), new Float32Array(4)])
 // → { dtype: 'float32', channels: 2, interleaved: false }
 
-sampleRates
+sampleRate
 // → [8000, 11025, 16000, 22050, 44100, 48000, ..., 384000]
 ```
 
@@ -108,7 +108,7 @@ Object format:
 v3 consolidates these packages:
 
 - [audio-format](https://npmjs.org/package/audio-format) → `parse`, `detect`, `stringify`
-- [sample-rate](https://npmjs.org/package/sample-rate) → `sampleRates`
+- [sample-rate](https://npmjs.org/package/sample-rate) → `sampleRate`
 - `pcm-encode` (from web-audio-api) → `convert([...channels], format)`
 
 ## License

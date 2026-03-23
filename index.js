@@ -3,9 +3,9 @@
  * Convert PCM audio data between formats
  */
 
-export const sampleRates = [8000, 11025, 16000, 22050, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
+export const sampleRate = [8000, 11025, 16000, 22050, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
 
-const RATE_SET = new Set(sampleRates)
+const RATE_SET = new Set(sampleRate)
 
 const DTYPE = {
 	float32: { C: Float32Array, min: -1, max: 1 },
