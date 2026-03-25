@@ -26,6 +26,6 @@
   },
   "homepage": "https://github.com/audiojs/pcm-convert#readme",
   "devDependencies": {
-    "audio-buffer": "^6.0.0"
+    "audio-buffer": "^7.0.0"
   }
 }

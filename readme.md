@@ -36,9 +36,7 @@ convert(new Uint8Array([0, 255]), new Uint16Array(2))
 convert(data, { dtype: 'float32', channels: 2, interleaved: false }, { dtype: 'int16', interleaved: true })
 ```
 
-### Format
-
-Format string parsing, detection, and serialization.
+### parse, detect, stringify, sampleRate
 
 ```js
 import { parse, stringify, detect, sampleRate } from 'pcm-convert'
@@ -79,28 +77,17 @@ Convert `src` from `srcFormat` to `dstFormat`. If `srcFormat` is omitted, it is 
 | `ArrayBuffer` | `uint8` |
 | `Buffer` | `uint8` |
 
-#### Format tokens
+#### Format
 
-String format: space-separated tokens in any order. Commas, semicolons, underscores also accepted as separators.
+String: space-separated tokens in any order (commas, semicolons, underscores also accepted). Object: same fields as properties. Aliases in parentheses are object-only.
 
-| Token | Values |
+| Field | Values |
 |---|---|
-| dtype | `float32`, `float64`, `float`, `int8`, `int16`, `int32`, `int`, `uint8`, `uint16`, `uint32`, `uint` |
-| channels | `mono`, `stereo`, `quad`, `2.1`, `5.1`, `N-channel` |
-| layout | `interleaved`, `interleave`, `planar` |
-| endianness | `le`, `be`, `littleendian`, `bigendian` |
-| container | `array`, `arraybuffer`, `buffer` |
-| sample rate | `8000`, `11025`, `16000`, `22050`, `44100`, `48000`, `88200`, `96000`, `176400`, `192000`, `352800`, `384000` |
-
-Object format:
-
-| Property | Values |
-|---|---|
-| `dtype` (or `type`) | `float32`, `float64`, `int8`, `int16`, `int32`, `uint8`, `uint16`, `uint32` |
-| `channels` (or `numberOfChannels`) | number or `mono`, `stereo`, `quad`, `5.1` |
-| `interleaved` | `true` or `false` |
-| `endianness` | `le` or `be` |
-| `sampleRate` (or `rate`) | number |
+| `dtype` (`type`) | `float32`, `float64`, `float`, `int8`, `int16`, `int32`, `int`, `uint8`, `uint16`, `uint32`, `uint` |
+| `channels` (`numberOfChannels`) | `mono`, `stereo`, `quad`, `2.1`, `5.1`, `N-channel`, or number |
+| `interleaved` | `interleaved`, `interleave`, `planar` (or boolean) |
+| `endianness` | `le`, `be`, `littleendian`, `bigendian` |
+| `sampleRate` (`rate`) | `8000`, `11025`, `16000`, `22050`, `44100`, `48000`, `88200`, `96000`, `176400`, `192000`, `352800`, `384000` (or number) |
 | `container` | `array`, `arraybuffer`, `buffer` |
 
 ## Absorbs
