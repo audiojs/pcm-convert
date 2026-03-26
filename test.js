@@ -100,6 +100,28 @@ test('AudioBuffer to float32', () => {
 	eq(convert(buf, 'float32'), [0, 1, 0, -1])
 })
 
+test('float32 planar → AudioBuffer', () => {
+	let src = new Float32Array([1, -1, 0, 0.5])
+	let out = convert(src, { dtype: 'float32', channels: 2, interleaved: false, sampleRate: 44100 }, 'audiobuffer')
+	assert.ok(typeof out.getChannelData === 'function')
+	assert.equal(out.numberOfChannels, 2)
+	assert.equal(out.length, 2)
+	assert.equal(out.sampleRate, 44100)
+	eq(out.getChannelData(0), [1, -1])
+	eq(out.getChannelData(1), [0, 0.5])
+})
+
+test('int16 interleaved → AudioBuffer', () => {
+	let src = new Int16Array([32767, 0, -32768, 16384])
+	let out = convert(src, { dtype: 'int16', channels: 2, interleaved: true, sampleRate: 48000 }, 'audiobuffer')
+	assert.ok(typeof out.getChannelData === 'function')
+	assert.equal(out.numberOfChannels, 2)
+	assert.equal(out.sampleRate, 48000)
+	assert.ok(Math.abs(out.getChannelData(0)[0] - 1) < 0.001)
+	assert.ok(Math.abs(out.getChannelData(1)[0] - 0) < 0.001)
+	assert.ok(Math.abs(out.getChannelData(0)[1] - (-1)) < 0.001)
+})
+
 test('destination container — typed array', () => {
 	let holder = new Uint8Array(4)
 	convert([0, 1, 0, -1], 'uint8', holder)
@@ -222,13 +244,16 @@ test('parse: comma/semicolon separators', () => {
 	assert.equal(f.interleaved, false)
 })
 
-test('parse: aliases', () => {
+test('parse: dtype aliases', () => {
 	assert.equal(parse('float').dtype, 'float32')
 	assert.equal(parse('int').dtype, 'int32')
 	assert.equal(parse('uint').dtype, 'uint32')
-	assert.equal(parse('interleave').interleaved, true)
-	assert.equal(parse('littleendian').endianness, 'le')
-	assert.equal(parse('bigendian').endianness, 'be')
+})
+
+test('parse: removed aliases throw', () => {
+	assert.throws(() => parse('interleave'), /Unknown format token/)
+	assert.throws(() => parse('littleendian'), /Unknown format token/)
+	assert.throws(() => parse('bigendian'), /Unknown format token/)
 })
 
 test('parse: channel aliases', () => {
@@ -250,8 +275,8 @@ test('parse: object with numberOfChannels', () => {
 	assert.equal(f.channels, 6)
 })
 
-test('parse: audiobuffer token throws', () => {
-	assert.throws(() => parse('audiobuffer'), /Unknown format token/)
+test('parse: audiobuffer as container', () => {
+	assert.deepStrictEqual(parse('audiobuffer'), { container: 'audiobuffer' })
 })
 
 // === Format detect tests ===

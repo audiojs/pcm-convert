@@ -5,6 +5,9 @@
 
 export const sampleRate = [8000, 11025, 16000, 22050, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
 
+let _AudioBuffer = typeof AudioBuffer !== 'undefined' ? AudioBuffer : null
+try { _AudioBuffer ??= (await import('audio-buffer')).default } catch {}
+
 const RATE_SET = new Set(sampleRate)
 
 const DTYPE = {
@@ -20,7 +23,7 @@ const DTYPE = {
 
 const dtype = d => DTYPE[d] && d || DTYPE[d + '32'] && (d + '32')
 
-const CONTAINER = { array: 1, arraybuffer: 1, buffer: 1 }
+const CONTAINER = { array: 1, arraybuffer: 1, buffer: 1, audiobuffer: 1 }
 
 const CHANNELS = { mono: 1, stereo: 2, '2.1': 3, quad: 4, '5.1': 6 }
 for (let i = 3; i <= 32; i++) CHANNELS[i + '-channel'] ||= i
@@ -58,10 +61,10 @@ export function parse(fmt) {
 		if (dtype(lo)) r.dtype = dtype(lo)
 		else if (CONTAINER[lo]) r.container = lo
 		else if (CHANNELS[lo]) r.channels = CHANNELS[lo]
-		else if (lo === 'interleaved' || lo === 'interleave') r.interleaved = true
+		else if (lo === 'interleaved') r.interleaved = true
 		else if (lo === 'planar') r.interleaved = false
-		else if (lo === 'le' || lo === 'littleendian') r.endianness = 'le'
-		else if (lo === 'be' || lo === 'bigendian') r.endianness = 'be'
+		else if (lo === 'le') r.endianness = 'le'
+		else if (lo === 'be') r.endianness = 'be'
 		else if (/^\d+$/.test(lo) && RATE_SET.has(+lo)) r.sampleRate = +lo
 		else throw Error('Unknown format token: ' + t)
 	}
@@ -131,6 +134,7 @@ export default function convert(src, from, to, dst) {
 	}
 
 	// Fill defaults
+	if (to.container === 'audiobuffer') to.dtype = 'float32'
 	if (!to.dtype) to.dtype = from.dtype
 	if (to.channels == null && from.channels != null) to.channels = from.channels
 	if (to.interleaved != null && from.interleaved == null) {
@@ -215,6 +219,24 @@ export default function convert(src, from, to, dst) {
 	}
 
 	// Return requested container type
+	if (to.container === 'audiobuffer') {
+		let ABCtor = typeof AudioBuffer !== 'undefined' ? AudioBuffer : _AudioBuffer
+		if (!ABCtor) throw Error('AudioBuffer not available. In Node.js: install audio-buffer package or set globalThis.AudioBuffer')
+		let ch = to.channels || 1, segLen = Math.floor(out.length / ch)
+		let sr = to.sampleRate || from.sampleRate || 44100
+		let ab = new ABCtor({ length: segLen, numberOfChannels: ch, sampleRate: sr })
+		let interleaved = reinterleave ? to.interleaved : (from.interleaved ?? false)
+		if (interleaved && ch > 1) {
+			for (let c = 0; c < ch; c++) {
+				let data = new Float32Array(segLen)
+				for (let i = 0; i < segLen; i++) data[i] = out[i * ch + c]
+				ab.copyToChannel(data, c)
+			}
+		} else {
+			for (let c = 0; c < ch; c++) ab.copyToChannel(out.subarray(c * segLen, (c + 1) * segLen), c)
+		}
+		return ab
+	}
 	if (to.container === 'arraybuffer' || to.container === 'buffer') return out.buffer || out
 	return out
 }
