@@ -178,10 +178,15 @@ export default function convert(src, from, to, dst) {
 		out = to.container === 'array' ? Array.from(samples) : new Ctor(samples)
 	} else {
 		out = to.container === 'array' ? new Array(len) : new Ctor(len)
-		let fromSpan = fromR.max - fromR.min, toSpan = toR.max - toR.min
+		let fromSpan = fromR.max - fromR.min
+		// Audio-standard float→int: span = 2^bits (max-min+1) so 0.0 maps exactly to 0
+		let toIsInt = toR.max > 1
+		let toSpan = (fromR.min === -1 && fromR.max === 1 && toIsInt) ? toR.max - toR.min + 1 : toR.max - toR.min
+		let roundInt = fromR.min === -1 && fromR.max === 1 && toIsInt
 		if (!reinterleave) {
 			for (let i = 0; i < len; i++) {
 				let v = ((samples[i] - fromR.min) / fromSpan) * toSpan + toR.min
+				if (roundInt) v = Math.round(v)
 				out[i] = v < toR.min ? toR.min : v > toR.max ? toR.max : v
 			}
 		} else {
@@ -191,6 +196,7 @@ export default function convert(src, from, to, dst) {
 				let v = samples[si]
 				if (needsMap) {
 					v = ((v - fromR.min) / fromSpan) * toSpan + toR.min
+					if (roundInt) v = Math.round(v)
 					if (v < toR.min) v = toR.min
 					else if (v > toR.max) v = toR.max
 				}

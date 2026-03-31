@@ -125,7 +125,7 @@ test('int16 interleaved → AudioBuffer', () => {
 test('destination container — typed array', () => {
 	let holder = new Uint8Array(4)
 	convert([0, 1, 0, -1], 'uint8', holder)
-	eq(holder, [127, 255, 127, 0])
+	eq(holder, [128, 255, 128, 0])
 })
 
 test('destination container — auto-detect both', () => {
@@ -165,7 +165,7 @@ test('arraybuffer output preserves dtype', () => {
 
 test('full args with undefined to', () => {
 	let res = convert([0, 1], 'float32', undefined, new Uint8Array(2))
-	eq(res, [127, 255])
+	eq(res, [128, 255])
 })
 
 test('data to arraybuffer container', () => {
@@ -188,7 +188,7 @@ test('Float32Array[] → int16 interleaved', () => {
 	let right = new Float32Array([0, 0.5])
 	let out = convert([left, right], 'int16 interleaved')
 	assert.ok(out instanceof Int16Array)
-	eq(out, [32767, 0, -32768, 16383])
+	eq(out, [32767, 0, -32768, 16384])
 })
 
 test('Float32Array[] → float32 interleaved', () => {
@@ -202,7 +202,7 @@ test('Float32Array[] → int16 planar (no reinterleave)', () => {
 	let left = new Float32Array([1, -1])
 	let right = new Float32Array([0, 0.5])
 	let out = convert([left, right], 'int16')
-	eq(out, [32767, -32768, 0, 16383])
+	eq(out, [32767, -32768, 0, 16384])
 })
 
 test('Float32Array[] mono', () => {
