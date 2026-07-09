@@ -3,6 +3,8 @@
  * Convert PCM audio data between formats
  */
 
+import resample from '@audio/resample-polyphase'
+
 export const sampleRate = [8000, 11025, 16000, 22050, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
 
 let _AudioBuffer = typeof AudioBuffer !== 'undefined' ? AudioBuffer : null
@@ -164,6 +166,32 @@ export default function convert(src, from, to, dst) {
 		)
 	} else {
 		samples = src
+	}
+
+	// Sample-rate conversion — polyphase FIR when both rates are known and differ.
+	// Runs in float domain per channel; the rest of the pipeline then handles
+	// dtype/range/layout/container as usual on the resampled samples.
+	if (from.sampleRate && to.sampleRate && from.sampleRate !== to.sampleRate) {
+		let ch = from.channels || 1
+		let n = Math.floor(samples.length / ch)
+		let interleaved = from.interleaved ?? false
+		let fromSpan = fromR.max - fromR.min
+		let planar = []
+		for (let c = 0; c < ch; c++) {
+			let f = new Float32Array(n)
+			for (let i = 0; i < n; i++) {
+				let v = samples[interleaved ? i * ch + c : c * n + i]
+				f[i] = ((v - fromR.min) / fromSpan) * 2 - 1
+			}
+			planar.push(resample(f, { from: from.sampleRate, to: to.sampleRate }))
+		}
+		let rn = planar[0].length
+		samples = new Float32Array(rn * ch)
+		for (let c = 0; c < ch; c++) samples.set(planar[c], c * rn)
+		if (to.interleaved == null && from.interleaved != null) to.interleaved = from.interleaved  // keep original layout
+		from.interleaved = false
+		from.dtype = 'float32'
+		fromR = { min: -1, max: 1 }
 	}
 
 	let len = samples.length

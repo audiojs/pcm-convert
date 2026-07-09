@@ -340,3 +340,61 @@ test('sampleRate: standard sample rates', () => {
 	assert.ok(sampleRate.includes(48000))
 	assert.ok(sampleRate.includes(96000))
 })
+
+// === Sample-rate conversion (polyphase FIR via @audio/resample-polyphase) ===
+
+const goertzel = (d, f, fs) => {
+	let w = 2 * Math.PI * f / fs, c = 2 * Math.cos(w), s1 = 0, s2 = 0
+	for (let i = 0; i < d.length; i++) { let s = d[i] + c * s1 - s2; s2 = s1; s1 = s }
+	return 2 * Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)) / d.length
+}
+const sine = (f, n, fs, a = 0.5) => Float32Array.from({ length: n }, (_, i) => a * Math.sin(2 * Math.PI * f * i / fs))
+const rms = d => { let s = 0; for (let v of d) s += v * v; return Math.sqrt(s / d.length) }
+
+test('resample: 44100 → 48000 preserves pitch and level', () => {
+	let x = sine(440, 44100, 44100)
+	let out = convert(x, 'float32 44100', 'float32 48000')
+	assert.equal(out.length, Math.round(44100 * 48000 / 44100))
+	// tone stays at 440 Hz at the new rate, amplitude preserved
+	assert.ok(Math.abs(goertzel(out, 440, 48000) - 0.5) < 0.02, `440 Hz level ${goertzel(out, 440, 48000).toFixed(3)}`)
+	assert.ok(Math.abs(rms(out) / rms(x) - 1) < 0.02, 'energy preserved')
+})
+
+test('resample: downsample anti-aliases (10 kHz into 8 kHz target)', () => {
+	let x = sine(10000, 44100, 44100)
+	let out = convert(x, 'float32 44100', 'float32 8000')
+	assert.equal(out.length, Math.round(44100 * 8000 / 44100))
+	// 10 kHz is above the 4 kHz target Nyquist — must be attenuated, not folded
+	assert.ok(rms(out) < rms(x) * 0.01, `alias floor ${(20 * Math.log10(rms(out) / rms(x))).toFixed(1)} dB`)
+})
+
+test('resample: int16 interleaved stereo → float32, layout preserved', () => {
+	let n = 22050, fs = 44100
+	let inter = new Int16Array(n * 2)
+	for (let i = 0; i < n; i++) {
+		inter[i * 2] = Math.round(0.5 * 32767 * Math.sin(2 * Math.PI * 440 * i / fs))
+		inter[i * 2 + 1] = Math.round(0.25 * 32767 * Math.sin(2 * Math.PI * 880 * i / fs))
+	}
+	let out = convert(inter, 'int16 stereo interleaved 44100', 'float32 22050')
+	assert.equal(out.length, n)                            // half rate, still interleaved stereo
+	let L = new Float32Array(n / 2), R = new Float32Array(n / 2)
+	for (let i = 0; i < n / 2; i++) { L[i] = out[i * 2]; R[i] = out[i * 2 + 1] }
+	assert.ok(Math.abs(goertzel(L, 440, 22050) - 0.5) < 0.03, 'left keeps 440')
+	assert.ok(Math.abs(goertzel(R, 880, 22050) - 0.25) < 0.03, 'right keeps 880')
+})
+
+test('resample: audiobuffer output carries the target rate', () => {
+	let ab = new AudioBuffer({ length: 44100, numberOfChannels: 1, sampleRate: 44100 })
+	ab.copyToChannel(sine(440, 44100, 44100), 0)
+	let out = convert(ab, 'audiobuffer 48000')
+	assert.equal(out.sampleRate, 48000)
+	assert.equal(out.length, 48000)
+	assert.ok(Math.abs(out.duration - 1) < 1e-6, 'duration preserved')
+	assert.ok(Math.abs(goertzel(out.getChannelData(0), 440, 48000) - 0.5) < 0.02, 'pitch preserved')
+})
+
+test('resample: same rate is a pass-through (no filter applied)', () => {
+	let x = sine(440, 4096, 44100)
+	let out = convert(x, 'float32 44100', 'float32 44100')
+	eq(out, [...x])
+})

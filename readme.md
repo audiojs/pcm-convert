@@ -1,6 +1,6 @@
 # pcm-convert [![stable](https://img.shields.io/badge/stability-stable-green.svg)](http://github.com/badges/stability-badges)
 
-Convert PCM audio data between formats. Zero dependencies, ESM.
+Convert PCM audio data between formats — dtype, layout, endianness, container, and sample rate (polyphase FIR anti-aliased resampling via [`@audio/resample-polyphase`](https://github.com/audiojs/resample)). ESM.
 
 [![npm install pcm-convert](https://nodei.co/npm/pcm-convert.png?mini=true)](https://npmjs.org/package/pcm-convert/)
 
@@ -9,6 +9,10 @@ import convert, { parse, detect, stringify, sampleRate } from 'pcm-convert'
 
 // dtype conversion
 convert(new Float32Array([1, -1, 0.5]), 'int16')
+
+// sample-rate conversion (rates on both sides → resampled, anti-aliased)
+convert(samples, 'float32 44100', 'float32 48000')
+convert(samples, 'int16 stereo interleaved 48000', 'float32 16000')  // the 48k → 16k voice-agent path
 
 // interleaved → planar, dtype change
 convert(new Uint8Array([127, 200, 127, 200]), 'uint8 stereo interleaved', 'float32 planar')
@@ -60,6 +64,8 @@ String (`'float32 stereo planar 44100'`) or object (`{ dtype, channels, interlea
 | `container` | `array`, `arraybuffer`, `buffer` (Node.js), `audiobuffer` |
 
 In string format, bare numbers are matched against the sample rate whitelist. Use `N-channel` for arbitrary channel counts.
+
+When both `from.sampleRate` and `to.sampleRate` are present and differ, samples are resampled — rational polyphase FIR (Kaiser-windowed, ~85 dB stopband), output length `round(n · to/from)`. Equal or absent rates pass through untouched. `AudioBuffer` sources carry their own rate, so `convert(audioBuffer, 'audiobuffer 48000')` resamples and stamps the target rate.
 
 Object aliases: `type` → `dtype`, `numberOfChannels` → `channels`, `rate` → `sampleRate`.
 

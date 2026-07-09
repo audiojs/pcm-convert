@@ -1,6 +1,6 @@
 {
   "name": "pcm-convert",
-  "version": "3.1.1",
+  "version": "3.2.0",
   "description": "Convert PCM audio data between formats",
   "type": "module",
   "main": "index.js",
@@ -27,5 +27,8 @@
   "homepage": "https://github.com/audiojs/pcm-convert#readme",
   "devDependencies": {
     "audio-buffer": "^7.0.0"
+  },
+  "dependencies": {
+    "@audio/resample-polyphase": "^1.0.0"
   }
 }
