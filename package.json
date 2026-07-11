@@ -30,5 +30,6 @@
   },
   "dependencies": {
     "@audio/resample-polyphase": "^1.0.0"
-  }
+  },
+  "funding": "https://github.com/sponsors/audiojs"
 }
