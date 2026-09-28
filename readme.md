@@ -29,6 +29,11 @@ convert(audioBuffer, 'int16 interleaved')
 // any format → AudioBuffer (browser-native; Node.js auto-discovers audio-buffer package if installed)
 convert(new Int16Array([...]), { dtype: 'int16', channels: 2, interleaved: true, sampleRate: 44100 }, 'audiobuffer')
 
+// no AudioBuffer global and no synchronous require (a browser worker, Node before 20.19 / 22.12): the
+// audio-buffer package loads in the background; await it before the first conversion to 'audiobuffer'
+import { ready } from 'pcm-convert'
+await ready
+
 // write into existing buffer
 convert(new Uint8Array([0, 255]), new Uint16Array(2))
 

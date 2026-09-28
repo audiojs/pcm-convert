@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { createRequire, register } from 'node:module'
 import convert, { parse, detect, stringify, sampleRate } from './index.js'
 import AudioBuffer from 'audio-buffer'
 
@@ -29,11 +30,25 @@ test('endianness swap', () => {
 
 test('format string markers', () => {
 	let out = convert(new Uint8Array([0, 255, 255, 0, 0, 255]), 'interleaved', 'float32 planar')
-	eq(out, [-1, 1, -1, 1, -1, 1])
+	eq(out, [-1, 127 / 128, -1, 127 / 128, -1, 127 / 128])   // uint8: (v − 128) / 128
 })
 
 test('unknown token throws', () => {
 	assert.throws(() => convert([0, 0, 0, 0], 'float32 xx'))
+})
+
+// int → float divides by 2^(bits−1), as ffmpeg (libswresample: s16 · 1/(1<<15)), libsndfile and Web Audio's
+// decodeAudioData do: 0 stays 0.0 and float → int (× 2^(bits−1), rounded, clipped) returns every code. The
+// former int → float map spanned max − min (65535): +0.5 LSB of DC, silence read as 1.5e-5, and int16 0 came
+// back as 1 (every code ≥ 0 moved up by one).
+test('int → float → int is the identity; 0 is 0.0; x = v / 2^(bits−1)', () => {
+	for (let [dtype, C, bits, signed] of [['int8', Int8Array, 8, true], ['uint8', Uint8Array, 8, false], ['int16', Int16Array, 16, true], ['uint16', Uint16Array, 16, false], ['int32', Int32Array, 32, true]]) {
+		let lo = signed ? -(2 ** (bits - 1)) : 0, hi = signed ? 2 ** (bits - 1) - 1 : 2 ** bits - 1, mid = signed ? 0 : 2 ** (bits - 1)
+		let codes = C.from([lo, lo + 1, mid - 1, mid, mid + 1, hi - 1, hi])
+		let f = convert(codes, dtype, 'float64')
+		eq(Array.from(f), Array.from(codes, v => (v - mid) / 2 ** (bits - 1)))
+		eq(Array.from(convert(f, 'float64', dtype)), Array.from(codes))
+	}
 })
 
 test('float32 → int16/int8/uint16', () => {
@@ -54,7 +69,7 @@ test('deinterleave', () => {
 
 test('array output', () => {
 	let out = convert(new Uint8Array([0, 255, 0, 255, 0, 255, 0, 255]), { interleaved: true }, 'array planar')
-	assert.deepStrictEqual(out, [-1, -1, -1, -1, 1, 1, 1, 1])
+	assert.deepStrictEqual(out, [-1, -1, -1, -1, 127 / 128, 127 / 128, 127 / 128, 127 / 128])
 	assert.ok(Array.isArray(out))
 })
 
@@ -137,7 +152,7 @@ test('destination container — auto-detect both', () => {
 test('destination container — 4-arg', () => {
 	let h = []
 	convert(new Uint8Array([0, 255, 0, 255]), 'interleaved', 'float32 planar', h)
-	assert.deepStrictEqual(h, [-1, -1, 1, 1])
+	assert.deepStrictEqual(h, [-1, -1, 127 / 128, 127 / 128])
 })
 
 test('arraybuffer should not shortcut', () => {
@@ -397,4 +412,30 @@ test('resample: same rate is a pass-through (no filter applied)', () => {
 	let x = sine(440, 4096, 44100)
 	let out = convert(x, 'float32 44100', 'float32 44100')
 	eq(out, [...x])
+})
+
+// A module with a top-level await makes every importer wait for it; bundled into split chunks that cycle through it
+// (two resolved copies in a module worker), the wait never ended. require(esm) loads only a module graph without one
+// (Node 20.19, 22.12+: ERR_REQUIRE_ASYNC_MODULE otherwise), so it pins that no importer waits on this package.
+test('no top-level await: the module and its imports load synchronously (require(esm))', { skip: !process.features?.require_module && 'Node without require(esm)' }, () => {
+	let m = createRequire(import.meta.url)('./index.js')
+	assert.equal(typeof m.default, 'function')
+	let ab = m.default(new Float32Array([0.5, -0.5]), 'float32', 'audiobuffer')
+	assert.equal(ab.length, 2, 'AudioBuffer output available right after a synchronous load')
+})
+
+// A browser worker has no AudioBuffer global (it is window-only) and no require: the stand-in loads in the background,
+// `ready` settles when it has. Simulated: a fresh copy of the module with require unavailable while it evaluates, and a
+// loader hook that holds its audio-buffer import for 2 s, so the conversion before `await ready` meets the load pending.
+test('worker-like (no AudioBuffer, no require): a clear error until `await ready`, then audiobuffer output', async () => {
+	register('data:text/javascript,' + encodeURIComponent(`export async function resolve(spec, ctx, next) {
+		if (spec === 'audio-buffer' && ctx.parentURL?.includes('worker-like')) await new Promise(r => setTimeout(r, 2000))
+		return next(spec, ctx)
+	}`))
+	let gbm = process.getBuiltinModule, m
+	process.getBuiltinModule = undefined
+	try { m = await import('./index.js?worker-like') } finally { process.getBuiltinModule = gbm }
+	assert.throws(() => m.default(new Float32Array([0.5]), 'float32', 'audiobuffer'), /await ready/)
+	await m.ready
+	assert.equal(m.default(new Float32Array([0.5, -0.5]), 'float32', 'audiobuffer').length, 2)
 })

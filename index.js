@@ -7,8 +7,24 @@ import resample from '@audio/resample-polyphase'
 
 export const sampleRate = [8000, 11025, 16000, 22050, 44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000]
 
-let _AudioBuffer = typeof AudioBuffer !== 'undefined' ? AudioBuffer : null
-try { _AudioBuffer ??= (await import('audio-buffer')).default } catch {}
+// Where there is no AudioBuffer (Node, and browser workers: it is a window-only global) the optional audio-buffer
+// package stands in: required synchronously where Node loads ES modules that way (require(esm): 20.19, 22.12+), else
+// imported in the background, `ready` settling once it has loaded or failed to. Not a top-level await: that held every
+// importer until it settled, and in a split bundle whose chunk graph put this module on a cycle (two resolved copies,
+// a module worker) the wait never ended and the worker hung before its first message.
+let _AudioBuffer = typeof AudioBuffer !== 'undefined' ? AudioBuffer : null, _loading = false
+
+/** Settles when the AudioBuffer stand-in is resolved: await it before converting to 'audiobuffer' where the
+ *  environment has no AudioBuffer of its own and no synchronous require (a browser worker, older Node). */
+export let ready = Promise.resolve()
+
+if (!_AudioBuffer) {
+	try { _AudioBuffer = globalThis.process?.getBuiltinModule?.('module').createRequire(import.meta.url)('audio-buffer').default ?? null } catch {}
+	if (!_AudioBuffer) {
+		_loading = true
+		ready = import('audio-buffer').then(m => { _AudioBuffer ??= m.default }, () => {}).finally(() => { _loading = false })
+	}
+}
 
 const RATE_SET = new Set(sampleRate)
 
@@ -116,6 +132,8 @@ export function stringify(format, omit) {
 }
 
 function range(d) { return DTYPE[d] || { min: -1, max: 1 } }
+// an integer range against a float one spans 2^bits (max - min + 1); otherwise max - min
+function span(r, other) { return r.max > 1 && other.max === 1 && other.min === -1 ? r.max - r.min + 1 : r.max - r.min }
 
 export default function convert(src, from, to, dst) {
 	if (!src) throw Error('Source data required')
@@ -175,7 +193,7 @@ export default function convert(src, from, to, dst) {
 		let ch = from.channels || 1
 		let n = Math.floor(samples.length / ch)
 		let interleaved = from.interleaved ?? false
-		let fromSpan = fromR.max - fromR.min
+		let fromSpan = span(fromR, { min: -1, max: 1 })
 		let planar = []
 		for (let c = 0; c < ch; c++) {
 			let f = new Float32Array(n)
@@ -206,11 +224,11 @@ export default function convert(src, from, to, dst) {
 		out = to.container === 'array' ? Array.from(samples) : new Ctor(samples)
 	} else {
 		out = to.container === 'array' ? new Array(len) : new Ctor(len)
-		let fromSpan = fromR.max - fromR.min
-		// Audio-standard float→int: span = 2^bits (max-min+1) so 0.0 maps exactly to 0
-		let toIsInt = toR.max > 1
-		let toSpan = (fromR.min === -1 && fromR.max === 1 && toIsInt) ? toR.max - toR.min + 1 : toR.max - toR.min
-		let roundInt = fromR.min === -1 && fromR.max === 1 && toIsInt
+		// Audio-standard int↔float: an integer range spans 2^bits against float's [-1, 1], both ways
+		// (x = v / 2^(bits-1), v = round(x · 2^(bits-1)) clipped), so 0 maps to 0.0 exactly and a round
+		// trip is the identity. Int↔int maps range to range.
+		let fromSpan = span(fromR, toR), toSpan = span(toR, fromR)
+		let roundInt = fromR.min === -1 && fromR.max === 1 && toR.max > 1
 		if (!reinterleave) {
 			for (let i = 0; i < len; i++) {
 				let v = ((samples[i] - fromR.min) / fromSpan) * toSpan + toR.min
@@ -255,7 +273,9 @@ export default function convert(src, from, to, dst) {
 	// Return requested container type
 	if (to.container === 'audiobuffer') {
 		let ABCtor = typeof AudioBuffer !== 'undefined' ? AudioBuffer : _AudioBuffer
-		if (!ABCtor) throw Error('AudioBuffer not available. In Node.js: install audio-buffer package or set globalThis.AudioBuffer')
+		if (!ABCtor) throw Error(_loading
+			? "AudioBuffer not loaded yet: `await ready` (import { ready } from 'pcm-convert') before converting to 'audiobuffer'"
+			: 'AudioBuffer not available. In Node.js: install audio-buffer package or set globalThis.AudioBuffer')
 		let ch = to.channels || 1, segLen = Math.floor(out.length / ch)
 		let sr = to.sampleRate || from.sampleRate || 44100
 		let ab = new ABCtor({ length: segLen, numberOfChannels: ch, sampleRate: sr })
